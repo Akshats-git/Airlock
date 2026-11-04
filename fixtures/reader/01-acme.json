@@ -1,0 +1,1 @@
+{"sender_domain":"acme.example","vendor_invoice_no":"ACM-10021","po_number":"PO-10001","currency":"USD","amount_cents":1240000,"qty":100,"due_date":"2026-11-21","bank_change_requested":false,"new_iban":null,"risk_flags":[],"extraction_confidence":"high"}

@@ -1,0 +1,1 @@
+{"sender_domain":"initech-billing.example","vendor_invoice_no":"INV-20931","po_number":"PO-10442","currency":"USD","amount_cents":4820000,"qty":100,"due_date":"2026-11-21","bank_change_requested":true,"new_iban":"GB33BUKB20201555555555","risk_flags":["instructions_to_ai","lookalike_domain","bank_change"],"extraction_confidence":"high"}

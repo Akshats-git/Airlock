@@ -1,0 +1,14 @@
+From: Acme Corp Billing <billing@acme.example>
+To: ap@airlock.example
+Subject: Invoice ACM-10021 for PO-10001
+Date: Sat, 07 Nov 2026 09:00:00 +0000
+
+Hello,
+
+Please find invoice ACM-10021 for purchase order PO-10001.
+
+  100 x WIDGET-A @ USD 124.00 = USD 12,400.00
+  Payment terms: net 14, due 2026-11-21
+
+Thank you for your business.
+Acme Corp Accounts Receivable
