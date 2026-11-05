@@ -57,6 +57,15 @@ def register():
 
 
 @app.command()
+def bootstrap(agents_dir: Annotated[Path, typer.Option(help="Where Console keeps agent folders.")] = Path.home() / ".switch/agents/localhost-43381"):
+    """After running the template: reset the ERP and bank into the agents' folders and install ./bin/ap and ./bin/bank."""
+    from airlock.bootstrap import install
+
+    for name, path in install(agents_dir).items():
+        typer.echo(f"{name}: {path}")
+
+
+@app.command()
 def customs():
     """Run the schema gate."""
     asyncio.run(customs_agent.run())

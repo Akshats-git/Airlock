@@ -17,21 +17,21 @@ def _fresh(path: Path) -> None:
         p.unlink(missing_ok=True)
 
 
-def reset_all(root: Path) -> None:
-    erp = root / "clerk" / "erp.sqlite"
+def reset_all(root: Path, clerk: str = "clerk", treasury: str = "treasury") -> None:
+    erp = root / clerk / "erp.sqlite"
     _fresh(erp)
     conn = connect(erp)
     seed(conn)
     conn.close()
 
-    bank = root / "treasury" / "bank.sqlite"
+    bank = root / treasury / "bank.sqlite"
     _fresh(bank)
     bank_ops.connect(bank).close()
 
-    inbox = root / "clerk" / "inbox"
+    inbox = root / clerk / "inbox"
     if inbox.exists():
         shutil.rmtree(inbox)
-    for stale in (root / "clerk").glob("batch-*.md"):
+    for stale in (root / clerk).glob("batch-*.md"):
         stale.unlink()
 
 
