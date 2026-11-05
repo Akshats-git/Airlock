@@ -12,6 +12,7 @@ dependencies = [
 [project.scripts]
 ap = "airlock.erp.cli:app"
 bank = "airlock.bank.cli:app"
+airlock = "airlock.agents.cli:app"
 
 [dependency-groups]
 dev = ["pytest>=8"]
