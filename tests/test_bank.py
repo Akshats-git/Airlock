@@ -28,7 +28,7 @@ def run(*args):
 def test_pay_moves_money_and_writes_receipt(desk):
     r = run("PAY-0001", "--to", "Acme Corp", "--amount", "12400.00")
     assert r.exit_code == 0
-    assert r.output.strip() == "PAID PAY-0001 Acme Corp 12400.00 USD tx=TX-0001 approved_by=controller"
+    assert r.output.strip() == "PAID PAY-0001 Acme Corp 12400.00 USD tx=TX-0001 approved_by=switch-approval"
     assert ops.balance(ops.connect()) == ops.OPENING_CENTS - 1240000
     receipt = json.loads((desk / "inbox" / "receipts.jsonl").read_text())
     assert receipt["payment_id"] == "PAY-0001"

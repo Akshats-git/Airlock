@@ -21,7 +21,7 @@ def pay_cmd(payment_id: str,
             amount: Annotated[str, typer.Option("--amount", help="Amount as in the batch document, e.g. 12400.00")]):
     """Pay one approved item, once, to the ERP's verified account."""
     receipts = os.environ.get("AIRLOCK_RECEIPTS")
-    approver = os.environ.get("AIRLOCK_APPROVER", "controller")
+    approver = os.environ.get("AIRLOCK_APPROVER", "switch-approval")
     try:
         erp = erp_connect(erp_path(), readonly=True)
         typer.echo(ops.pay(ops.connect(), erp, payment_id, to, amount, approver, Path(receipts) if receipts else None))
