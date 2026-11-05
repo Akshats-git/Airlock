@@ -55,3 +55,7 @@ def test_room_membership_is_the_wall(compiled):
 
 def test_the_policy_is_a_template_document_so_no_agent_can_edit_it(compiled):
     assert compiled["rooms"][Names().desk]["docs"] == ["ap-policy"]
+
+
+def test_the_clerk_model_follows_its_provider(compiled):
+    assert compiled["clerk_models"] == {"codex": "gpt-6-luna", "claude": "sonnet"}

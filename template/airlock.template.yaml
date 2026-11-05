@@ -26,14 +26,8 @@ params:
   clerk_provider:
     type: provider
     label: Clerk runs on
-    description: Codex is the real clerk (its sandbox has no network and writes only in its own folder). Claude is the free stand-in while building.
+    description: Codex is the real clerk (its sandbox has no network and writes only in its own folder). Claude is the stand-in while building. The model follows the choice, gpt-6-luna on Codex and sonnet on Claude.
     default: [codex, claude]
-    input: advanced
-  clerk_model:
-    type: string
-    label: Clerk model
-    description: Codex model for the clerk. A small, cheap one is enough; it runs one command per invoice. If you switch the clerk to Claude, change this to a Claude model such as sonnet.
-    default: gpt-6-luna
     input: advanced
   treasury_model:
     type: string
@@ -54,7 +48,10 @@ resources:
     provider: "{clerk_provider}"
     machine: "{machine}"
     directory: "{$agents_dir}/ap-clerk"
-    model: "{clerk_model}"
+    model:
+      - if: "{clerk_provider} == codex"
+        value: gpt-6-luna
+      - value: sonnet
     auto_mode: true
     auto_approve: false
     addressing: { anyone_in: [ap_desk] }
