@@ -3,7 +3,11 @@ name = "airlock"
 version = "0.1.0"
 description = "An accounts-payable desk in team chat where agents read every invoice and no invoice can give them orders."
 requires-python = ">=3.12"
-dependencies = ["pydantic>=2.7", "typer>=0.12"]
+dependencies = [
+    "pydantic>=2.7",
+    "typer>=0.12",
+    "websockets>=14",
+]
 
 [project.scripts]
 ap = "airlock.erp.cli:app"
