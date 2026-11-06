@@ -5,7 +5,8 @@ real `./bin/bank` from the clerk's folder twice: unsandboxed (it pays, so the te
 inside Codex's `workspace-write` sandbox, which is what Switch gives a Codex agent (nothing moves).
 No model is called; `codex sandbox` only applies the sandbox. Skipped where Codex isn't installed.
 
-The folders live under the repo, not under /tmp: the sandbox always lets an agent write to /tmp.
+The folders live under ~/.cache, not under the repo or /tmp: the sandbox always lets an agent write to /tmp,
+and a clone may well sit there.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from __future__ import annotations
 import shutil
 import sqlite3
 import subprocess
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -25,11 +27,13 @@ from tests.conftest import ACME
 
 PAY = ["../treasury/bin/bank", "pay", "PAY-0001", "--to", "Acme Corp", "--amount", "12400.00"]
 codex = shutil.which("codex")
+ROOT = Path.home() / ".cache" / "airlock-tests"
+UNDER_TMP = any(ROOT.resolve().is_relative_to(Path(t).resolve()) for t in {"/tmp", tempfile.gettempdir()})
 
 
 @pytest.fixture
 def agents(monkeypatch):
-    root = Path(__file__).resolve().parent.parent / "runtime" / f"isolation-{uuid.uuid4().hex[:8]}"
+    root = ROOT / f"isolation-{uuid.uuid4().hex[:8]}"
     monkeypatch.setenv("AIRLOCK_TODAY", "2026-11-07")
     install(root)
     erp = erp_connect(root / "ap-clerk" / "erp.sqlite")
@@ -53,6 +57,7 @@ def test_unsandboxed_clerk_could_pay_without_a_card(agents):
 
 
 @pytest.mark.skipif(codex is None, reason="Codex is not installed")
+@pytest.mark.skipif(UNDER_TMP, reason="home is under a temp folder, which the sandbox lets agents write")
 def test_codex_sandboxed_clerk_cannot_pay(agents):
     r = subprocess.run([codex, "sandbox", "-c", 'sandbox_mode="workspace-write"', "--", *PAY],
                        cwd=agents / "ap-clerk", capture_output=True, text=True, timeout=60)
