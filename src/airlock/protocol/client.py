@@ -21,6 +21,7 @@ from typing import Any
 import websockets
 from websockets.exceptions import ConnectionClosed
 
+# Only a fallback for direct library use; the `airlock` command finds the real port (airlock.local).
 DEFAULT_API = "http://localhost:43381"
 log = logging.getLogger("airlock.protocol")
 

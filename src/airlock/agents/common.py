@@ -11,7 +11,8 @@ from datetime import datetime
 from pathlib import Path
 
 from airlock.protocol import Credentials, Message, SwitchAgent, load_or_register
-from airlock.protocol.client import DEFAULT_API, Stopped
+from airlock import local
+from airlock.protocol.client import Stopped
 
 log = logging.getLogger("airlock.agents")
 
@@ -48,7 +49,8 @@ def same_agent(sender_name: str, expected: str) -> bool:
 
 
 def api_url() -> str:
-    return os.environ.get("AIRLOCK_API", DEFAULT_API)
+    """$AIRLOCK_API, else the port Switch Console chose for its local server."""
+    return local.api_url()
 
 
 def runtime_dir() -> Path:
