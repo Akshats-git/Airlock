@@ -10,6 +10,7 @@ the architecture.
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.request
 
@@ -124,19 +125,31 @@ class Books:
 
 
 class OpenAIChat:
-    def __init__(self, api_key: str, base: str = "https://api.openai.com/v1", opener=urllib.request.urlopen):
-        self._key, self._base, self._open = api_key, base.rstrip("/"), opener
+    """Chat completions over plain HTTP. A dropped connection, a 429 or a 5xx is retried a few times."""
+
+    RETRIES = 3
+
+    def __init__(self, api_key: str, base: str = "https://api.openai.com/v1", opener=urllib.request.urlopen,
+                 sleep=time.sleep):
+        self._key, self._base, self._open, self._sleep = api_key, base.rstrip("/"), opener, sleep
 
     def __call__(self, body: dict) -> dict:
-        req = urllib.request.Request(f"{self._base}/chat/completions", data=json.dumps(body).encode(), method="POST",
-                                     headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._key}"})
-        try:
-            with self._open(req, timeout=90) as r:
-                return json.loads(r.read())
-        except urllib.error.HTTPError as e:
-            raise RuntimeError(f"OpenAI HTTP {e.code}") from None  # never echo the body: it may carry the key
-        except (urllib.error.URLError, OSError) as e:
-            raise RuntimeError(f"cannot reach OpenAI ({getattr(e, 'reason', e)})") from None
+        data = json.dumps(body).encode()
+        for attempt in range(self.RETRIES + 1):
+            req = urllib.request.Request(f"{self._base}/chat/completions", data=data, method="POST", headers={
+                "Content-Type": "application/json", "Authorization": f"Bearer {self._key}"})
+            try:
+                with self._open(req, timeout=90) as r:
+                    return json.loads(r.read())
+            except urllib.error.HTTPError as e:
+                error = f"OpenAI HTTP {e.code}"  # never echo the body: it may carry the key
+                if e.code != 429 and e.code < 500:
+                    raise RuntimeError(error) from None
+            except (urllib.error.URLError, OSError) as e:
+                error = f"cannot reach OpenAI ({getattr(e, 'reason', e)})"
+            if attempt < self.RETRIES:
+                self._sleep(2 ** (attempt + 1))
+        raise RuntimeError(f"{error}, after {self.RETRIES} retries")
 
 
 def run_item(item: Item, prompt: str, model: str, chat) -> dict:

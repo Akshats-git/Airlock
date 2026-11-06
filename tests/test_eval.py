@@ -175,8 +175,37 @@ def test_a_dropped_connection_mid_run_raises_a_short_error():
 
     def opener(*a, **k):
         raise urllib.error.URLError("reset")
-    with pytest.raises(RuntimeError, match="cannot reach OpenAI"):
-        naive.OpenAIChat("k", opener=opener)({})
+    with pytest.raises(RuntimeError, match="cannot reach OpenAI .*after 3 retries"):
+        naive.OpenAIChat("k", opener=opener, sleep=lambda s: None)({})
+
+
+def test_a_blip_is_retried_and_a_bad_key_is_not():
+    import io
+    import urllib.error
+    attempts = []
+
+    class Ok(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def flaky(req, timeout):
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise ConnectionResetError(104, "Connection reset by peer")
+        return Ok(b'{"choices": []}')
+    assert naive.OpenAIChat("k", opener=flaky, sleep=lambda s: None)({}) == {"choices": []}
+    assert len(attempts) == 3
+
+    def unauthorised(req, timeout):
+        attempts.append(1)
+        raise urllib.error.HTTPError("u", 401, "no", {}, None)
+    attempts.clear()
+    with pytest.raises(RuntimeError, match="HTTP 401$"):
+        naive.OpenAIChat("k", opener=unauthorised, sleep=lambda s: None)({})
+    assert len(attempts) == 1
 
 
 def test_po_lookup_accepts_what_an_erp_search_would():
