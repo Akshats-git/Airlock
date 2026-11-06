@@ -140,3 +140,40 @@ def test_report_names_every_setup(tmp_path):
     report.save(rows_n, tmp_path)
     md = report.markdown(report.latest_runs(tmp_path))
     assert "reader fully hijacked" in md and "prompt with security rules" in md and "| c01-acme |" in md
+
+
+def test_a_failed_reader_call_is_reported_not_scored():
+    class Down:
+        name = "openai"
+
+        def extract(self, job):
+            raise OSError("no network")
+    w = airlock_run.Watched(Down())
+    airlock_run.run_item(item("c01"), "openai", w)
+    assert w.error == "OSError: no network"
+
+
+def test_no_network_fails_fast_and_saves_nothing(monkeypatch, tmp_path):
+    import urllib.error
+    from typer.testing import CliRunner
+    from airlock.agents import cli
+
+    def down(*a, **k):
+        raise urllib.error.URLError("Temporary failure in name resolution")
+    monkeypatch.setattr(cli.reader_agent, "list_models", down)
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
+    monkeypatch.chdir(tmp_path)
+    corpus_dir = str(Path(__file__).resolve().parent.parent / "eval" / "corpus")
+    for args in (["eval", "naive", "--corpus", corpus_dir], ["eval", "airlock", "--reader", "openai", "--corpus", corpus_dir]):
+        r = CliRunner().invoke(cli.app, args)
+        assert r.exit_code == 1 and "Cannot reach api.openai.com" in r.output and "Nothing was run" in r.output
+    assert not (tmp_path / "eval").exists()
+
+
+def test_a_dropped_connection_mid_run_raises_a_short_error():
+    import urllib.error
+
+    def opener(*a, **k):
+        raise urllib.error.URLError("reset")
+    with pytest.raises(RuntimeError, match="cannot reach OpenAI"):
+        naive.OpenAIChat("k", opener=opener)({})

@@ -241,18 +241,49 @@ def _finish_eval(rows: list[dict]) -> None:
     typer.echo(f"\n{report.line(rows)}\nraw log: {path}\nsummary: {report.SUMMARY}")
 
 
+def _preflight(key: str, model: str) -> None:
+    """A free call (the model list) before any paid one, so a dead network or a bad key costs nothing."""
+    import urllib.error
+    try:
+        models = reader_agent.list_models(key)
+    except urllib.error.HTTPError as e:
+        typer.echo(f"OpenAI refused the model list (HTTP {e.code}); check OPENAI_API_KEY. Nothing was run.")
+        raise typer.Exit(1)
+    except (urllib.error.URLError, OSError) as e:
+        reason = getattr(e, "reason", e)
+        typer.echo(f"Cannot reach api.openai.com ({reason}). Check the network (curl -sI https://api.openai.com). "
+                   "Nothing was run.")
+        raise typer.Exit(1)
+    if model not in models:
+        typer.echo(f"Model {model!r} is not available to this key. Nothing was run.")
+        raise typer.Exit(1)
+
+
+def _abort(item_id: str, error: str) -> None:
+    typer.echo(f"Stopped at {item_id}: {error}. Nothing was saved; run it again.")
+    raise typer.Exit(1)
+
+
 @eval_app.command("airlock")
 def eval_airlock(reader: Annotated[str, typer.Option(help="quiet or raw (a hijacked reader, free) or openai")] = "quiet",
                  only: Only = None, corpus: Corpus = Path("eval/corpus")):
     """Run each corpus email through mailroom, reader, customs, the clerk's ERP and the bank."""
     from airlock.eval import airlock_run, corpus as corpus_mod
-    items = corpus_mod.load(corpus, only)
-    extractor = reader_agent.make_extractor("openai", Path()) if reader == "openai" else None
     if reader not in ("quiet", "raw", "openai"):
         raise typer.BadParameter("reader must be quiet, raw or openai")
-    if extractor:
-        typer.echo(f"real reader: {extractor.model}, {len(items)} calls")
-    _finish_eval([airlock_run.run_item(i, reader, extractor) for i in items])
+    items = corpus_mod.load(corpus, only)
+    extractor = None
+    if reader == "openai":
+        real = reader_agent.make_extractor("openai", Path())
+        _preflight(os.environ["OPENAI_API_KEY"], real.model)
+        extractor = airlock_run.Watched(real)
+        typer.echo(f"real reader: {real.model}, {len(items)} calls")
+    rows = []
+    for i in items:
+        rows.append(airlock_run.run_item(i, reader, extractor))
+        if extractor and extractor.error:  # the live reader would hold it too, but that measures the network
+            _abort(i.id, extractor.error)
+    _finish_eval(rows)
 
 
 @eval_app.command("naive")
@@ -271,10 +302,14 @@ def eval_naive(prompt: Annotated[str, typer.Option(help="naive or guarded")] = "
     model = model or os.environ.get("AIRLOCK_READER_MODEL", reader_agent.DEFAULT_MODEL)
     items = corpus_mod.load(corpus, only)
     typer.echo(f"{prompt} agent on {model}: {len(items)} emails, at most {naive.MAX_STEPS} calls each")
+    _preflight(key, model)
     chat = naive.OpenAIChat(key)
     rows = []
     for i in items:
-        rows.append(naive.run_item(i, prompt, model, chat))
+        try:
+            rows.append(naive.run_item(i, prompt, model, chat))
+        except RuntimeError as e:
+            _abort(i.id, str(e))
     tokens = sum(r["usage"]["prompt_tokens"] + r["usage"]["completion_tokens"] for r in rows)
     typer.echo(f"tokens used: {tokens}")
     _finish_eval(rows)

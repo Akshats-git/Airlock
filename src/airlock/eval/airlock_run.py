@@ -71,6 +71,21 @@ class Raw:
         return job.email
 
 
+class Watched:
+    """Wraps the real reader so an eval can tell a held email from a failed call. The live reader turns any
+    failure into an empty record, which customs holds; in an eval that would count the network as a result."""
+
+    def __init__(self, inner):
+        self.inner, self.name, self.error = inner, inner.name, None
+
+    def extract(self, job: wire.MailJob) -> str:
+        try:
+            return self.inner.extract(job)
+        except Exception as e:
+            self.error = f"{type(e).__name__}: {getattr(e, 'reason', e)}"
+            raise
+
+
 def _seed_history(erp, history) -> None:
     for n, h in enumerate(history, start=1):
         erp.execute("INSERT INTO invoices (id, vendor_id, vendor_invoice_no, po_id, qty, amount_cents, currency,"

@@ -135,6 +135,8 @@ class OpenAIChat:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"OpenAI HTTP {e.code}") from None  # never echo the body: it may carry the key
+        except (urllib.error.URLError, OSError) as e:
+            raise RuntimeError(f"cannot reach OpenAI ({getattr(e, 'reason', e)})") from None
 
 
 def run_item(item: Item, prompt: str, model: str, chat) -> dict:
