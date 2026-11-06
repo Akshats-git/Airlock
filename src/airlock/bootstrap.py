@@ -3,11 +3,13 @@
 Console chooses each agent's folder (<agents dir>/<agent name>), so this runs after the template.
 The wrappers call the repo's own virtualenv by absolute path (Codex's sandbox has no network, so nothing
 may be fetched at run time) and pin every file location, so an agent can only ever reach its own data:
-the clerk its ERP; treasury the bank, a read-only view of the ERP, and the clerk's receipts inbox.
+the clerk its ERP; treasury the bank, the ERP (read for payments; written only to copy an account change
+the controller approved), and the clerk's receipts inbox.
 """
 
 from __future__ import annotations
 
+import os
 import stat
 import sys
 from pathlib import Path
@@ -22,7 +24,7 @@ exec "{exe}" "$@"
 """
 
 
-def _write(path: Path, exe: Path, env: dict[str, Path]) -> None:
+def _write(path: Path, exe: Path, env: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = "\n".join(f'export {k}="{v}"' for k, v in env.items())
     path.write_text(_WRAPPER.format(env=lines, exe=exe))
@@ -39,5 +41,7 @@ def install(agents_dir: Path, names: Names | None = None, bin_dir: Path | None =
         "AIRLOCK_ERP": clerk / "erp.sqlite",
         "AIRLOCK_BANK": treasury / "bank.sqlite",
         "AIRLOCK_RECEIPTS": clerk / "inbox" / "receipts.jsonl",
+        # The controller's chat username, if known: the bank then refuses an account change they verified themselves.
+        **({"AIRLOCK_CONTROLLER": os.environ["AIRLOCK_CONTROLLER"]} if os.environ.get("AIRLOCK_CONTROLLER") else {}),
     })
     return {"ap": clerk / "bin" / "ap", "bank": treasury / "bin" / "bank"}

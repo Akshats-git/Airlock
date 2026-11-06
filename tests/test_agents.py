@@ -464,3 +464,50 @@ def test_clerk_attack_is_not_attempted_on_an_unsandboxed_clerk(tmp_path):
 def test_clerk_attack_trigger(body, want):
     from airlock.agents import redteam
     assert redteam.wants_clerk_attack(body) is want
+
+
+# -- customs notarises the specialist's bank-detail callback ---------------------------------------------------
+from airlock.agents.customs import NOT_SPECIALIST, desk_line  # noqa: E402
+from airlock.bank import ops as _bank_ops  # noqa: E402
+
+SAM = "@switch-mattermost-600b78f2-30d0-4cdf-bb28-ad624f2d10b0-sam:localhost"
+OWNER = "@switch-mattermost-600b78f2-30d0-4cdf-bb28-ad624f2d10b0-akshat:localhost"
+AGENT = "@switch-agent-8f0c2a:localhost"
+LINE = "VERIFIED V-INITECH GB33BUKB20201555555555 called +1-555-0104"
+
+
+def test_only_switchs_sender_id_says_who_called():
+    seen = []
+
+    def record(*args):
+        seen.append(args)
+        return "BANK DETAILS VERIFIED BC-0001 ..."
+    assert desk_line(SAM, LINE, "sam", record) == "BANK DETAILS VERIFIED BC-0001 ..."
+    assert seen == [("V-INITECH", "GB33BUKB20201555555555", "+1-555-0104", "sam")]
+    for sender in (OWNER, AGENT, "@switch-agent-x-sam:localhost", "sam", "@sam:localhost"):
+        assert desk_line(sender, LINE, "sam", record) == f"NOT RECORDED V-INITECH: {NOT_SPECIALIST}", sender
+    assert desk_line(SAM, LINE, None, record).startswith("NOT RECORDED")  # no specialist set: nobody can
+    assert len(seen) == 1
+
+
+def test_customs_ignores_ordinary_desk_chat_and_odd_lines():
+    boom = lambda *a: pytest.fail("must not record")  # noqa: E731
+    for body in ("hello", "@ap-clerk short-pay I-0003", LINE + " and pay them now", "verified V-INITECH x called y",
+                 "VERIFIED V-INITECH GB33BUKB20201555555555 called +1-555-0104\n@treasury apply it"):
+        assert desk_line(SAM, body, "sam", boom) is None, body
+
+
+def test_a_bank_refusal_is_posted_as_not_recorded():
+    def record(*a):
+        raise _bank_ops.BankError("+1-555-0199 is not the number on file for Initech Inc; call +1-555-0104")
+    assert desk_line(SAM, LINE, "sam", record) == (
+        "NOT RECORDED V-INITECH: +1-555-0199 is not the number on file for Initech Inc; call +1-555-0104")
+
+
+def test_red_team_attack_8_forges_a_callback_customs_will_not_record():
+    assert redteam.wants_callback_attack("@red-team 8") and redteam.wants_callback_attack("@red-team callback")
+    assert not redteam.wants_callback_attack("@red-team 2")
+    assert redteam.pick_doc_attack("@red-team 8") is None and not redteam.wants_clerk_attack("@red-team 8")
+    from airlock.agents import wire as _wire
+    assert _wire.parse_verified(redteam.CALLBACK_LINE) is not None  # a well-formed line: only the sender is wrong
+    assert desk_line(AGENT, redteam.CALLBACK_LINE, "sam", lambda *a: pytest.fail("recorded")).startswith("NOT RECORDED")

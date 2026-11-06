@@ -24,6 +24,13 @@ _DOMAIN = r"(?P<domain>none|[a-z0-9][a-z0-9.-]{0,78}[a-z0-9])"
 _ENVELOPE = re.compile(rf"(?:@(?P<to>[a-z0-9._-]+) )?ENVELOPE run={_RUN} n=(?P<n>[1-9][0-9]?) mail={_MAIL} domain={_DOMAIN}")
 _MAIL_HEAD = re.compile(rf"(?:@(?P<to>[a-z0-9._-]+) )?MAIL run={_RUN} mail={_MAIL}")
 _READ_HEAD = re.compile(rf"(?:@(?P<to>[a-z0-9._-]+) )?READ run={_RUN} mail={_MAIL}")
+# The AP specialist's record of a bank-detail callback, posted in the desk: VERIFIED V-INITECH <IBAN> called <phone>
+_VERIFIED = re.compile(r"VERIFIED (?P<vendor>V-[A-Z]{2,8}) (?P<iban>[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}) called "
+                       r"(?P<phone>\+[0-9][0-9-]{5,19})")
+# A person on a messaging platform, as Switch names them: @switch-mattermost-<bridge id>-<username>:<server>.
+# Agents are @switch-agent-<hex>:<server>, so no agent can ever match.
+_PERSON = re.compile(r"@switch-(?!agent-)[a-z]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-"
+                     r"(?P<user>[a-z0-9._-]+):[A-Za-z0-9.-]+")
 _FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
 
 
@@ -106,3 +113,21 @@ def clamp_reader_output(text: str) -> str:
     """One compact line, never longer than a record could be. Too long means not a record."""
     one_line = " ".join(text.split())
     return one_line if len(one_line) <= MAX_READER_CHARS else one_line[:MAX_READER_CHARS]
+
+
+@dataclass(frozen=True)
+class Verified:
+    vendor: str
+    iban: str
+    phone: str
+
+
+def parse_verified(body: str) -> Verified | None:
+    m = _VERIFIED.fullmatch(body.strip())
+    return Verified(m["vendor"], m["iban"], m["phone"]) if m else None
+
+
+def person_username(sender: str) -> str | None:
+    """The chat username of a person, from Switch's own sender id; None for an agent or anything else."""
+    m = _PERSON.fullmatch(sender)
+    return m["user"] if m else None

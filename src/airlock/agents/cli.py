@@ -103,6 +103,10 @@ def specialist(username: Annotated[str, typer.Argument(help="The second person's
     except gateway.GatewayError as e:
         typer.echo(f"Couldn't link {username}: {e}")
         raise typer.Exit(1)
+    saved = runtime_dir() / "specialist"
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    saved.write_text(username.strip().lstrip("@") + "\n")
+    typer.echo(f"Saved to {saved}: customs takes bank-detail callbacks from {username} only, and doctor checks their seat.")
     typer.echo(f"Next: add {username} to ap-desk in Mattermost (channel menu > Add members), not to ap-quarantine.")
 
 
@@ -150,7 +154,7 @@ def doctor():
             agent = load_agent(names.customs)
             rooms, detail = agent.call("list_rooms"), (lambda rid: agent.call("get_room_detail", room_id=rid))
             checks += dr.walls(rooms, detail, names)
-            checks += dr.people(rooms, detail, names, os.environ.get("AIRLOCK_SPECIALIST"))
+            checks += dr.people(rooms, detail, names, customs_agent.specialist_name())
             checks += dr.addressing(agent.call("list_agents"), names)
         except (HttpError, OSError) as e:
             checks.append(dr.Check(dr.FAIL, f"the server refused customs: {e}", "is the local server running?"))

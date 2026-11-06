@@ -31,6 +31,25 @@ def pay_cmd(payment_id: str,
         raise typer.Exit(1)
 
 
+change_app = typer.Typer(no_args_is_help=True, help="Change a beneficiary's account (after the specialist's callback).")
+app.add_typer(change_app, name="change")
+
+
+@change_app.command("apply")
+def change_apply_cmd(change_id: str,
+                     to: Annotated[str, typer.Option("--to", help="The vendor's name, as in the BANK DETAILS VERIFIED line.")],
+                     iban: Annotated[str, typer.Option("--iban", help="The new account, as in that line. Shown on the approval card.")]):
+    """Apply one verified change to the beneficiary list."""
+    approver = os.environ.get("AIRLOCK_APPROVER", "switch-approval")
+    try:
+        erp = erp_connect(erp_path()) if erp_path().exists() else None
+        typer.echo(ops.apply_change(ops.connect(), erp, change_id, to, iban, approver,
+                                    os.environ.get("AIRLOCK_CONTROLLER")))
+    except ops.BankError as e:
+        typer.echo(f"REFUSED {e}")
+        raise typer.Exit(1)
+
+
 @app.command("balance")
 def balance_cmd():
     """Print the account balance."""

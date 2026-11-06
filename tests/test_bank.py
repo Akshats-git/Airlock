@@ -100,3 +100,60 @@ def test_snapshot_for_ledger_page(desk):
     snap = ops.snapshot(ops.connect())
     assert snap["balance_cents"] == ops.OPENING_CENTS - 430000
     assert snap["transfers"][0]["payee"] == "Globex Ltd"
+
+
+# -- changing a beneficiary's account -----------------------------------------------------------------------
+INITECH_PHONE = "+1-555-0104"
+
+
+def change(*args):
+    return CliRunner().invoke(app, ["change", "apply", *args])
+
+
+def test_a_callback_must_use_the_number_the_bank_holds(desk):
+    bank = ops.connect()
+    with pytest.raises(ops.BankError, match=r"\+1-555-0199 is not the number on file for Initech Inc; call \+1-555-0104"):
+        ops.record_verification(bank, "V-INITECH", ATTACKER, "+1-555-0199", "sam")
+    with pytest.raises(ops.BankError, match="checksum"):
+        ops.record_verification(bank, "V-INITECH", "GB00BUKB20201555555555", INITECH_PHONE, "sam")
+    with pytest.raises(ops.BankError, match="already"):
+        ops.record_verification(bank, "V-INITECH", "NL91ABNA0417164300", INITECH_PHONE, "sam")
+    with pytest.raises(ops.BankError, match="not on the bank's beneficiary list"):
+        ops.record_verification(bank, "V-UMB", ATTACKER, INITECH_PHONE, "sam")
+    line = ops.record_verification(bank, "V-INITECH", ATTACKER, INITECH_PHONE, "sam")
+    assert line.startswith(f"BANK DETAILS VERIFIED BC-0001 Initech Inc NL91ABNA0417164300 -> {ATTACKER} called "
+                           f"{INITECH_PHONE} (the number on file) by sam. Not applied")
+    assert ops.beneficiary(bank, "V-INITECH")["iban"] == "NL91ABNA0417164300"  # recorded, not applied
+
+
+def test_nothing_changes_without_a_recorded_callback(desk):
+    r = change("BC-0001", "--to", "Initech Inc", "--iban", ATTACKER)
+    assert r.exit_code == 1 and "needs the AP specialist's callback first" in r.output
+
+
+def test_apply_takes_exactly_what_was_verified(desk, erp):
+    ops.record_verification(ops.connect(), "V-INITECH", ATTACKER, INITECH_PHONE, "sam")
+    assert "not 'Acme Corp'" in change("BC-0001", "--to", "Acme Corp", "--iban", ATTACKER).output
+    assert f"verified {ATTACKER}, not GB94BARC10201530093459" in change(
+        "BC-0001", "--to", "Initech Inc", "--iban", "GB94BARC10201530093459").output
+    r = change("BC-0001", "--to", "Initech Inc", "--iban", ATTACKER)
+    assert r.exit_code == 0 and r.output.startswith(f"APPLIED BC-0001 Initech Inc now pays to {ATTACKER}")
+    b = ops.beneficiary(ops.connect(), "V-INITECH")
+    assert b["iban"] == ATTACKER and "sam, callback +1-555-0104; BC-0001" == b["verified_by"]
+    assert erp.execute("SELECT iban FROM vendors WHERE id='V-INITECH'").fetchone()[0] == ATTACKER  # the copy follows
+    assert "beneficiary_change" in erp_ops.decision_log(erp)
+    assert "is applied, not pending" in change("BC-0001", "--to", "Initech Inc", "--iban", ATTACKER).output
+
+
+def test_the_controller_cannot_verify_their_own_change(desk, monkeypatch):
+    monkeypatch.setenv("AIRLOCK_CONTROLLER", "akshat")
+    ops.record_verification(ops.connect(), "V-INITECH", ATTACKER, INITECH_PHONE, "Akshat")
+    r = change("BC-0001", "--to", "Initech Inc", "--iban", ATTACKER)
+    assert r.exit_code == 1 and "the controller; a second person must call" in r.output
+
+
+def test_a_newer_callback_replaces_an_older_one(desk):
+    bank = ops.connect()
+    ops.record_verification(bank, "V-INITECH", ATTACKER, INITECH_PHONE, "sam")
+    ops.record_verification(bank, "V-INITECH", "GB94BARC10201530093459", INITECH_PHONE, "sam")
+    assert "is superseded" in change("BC-0001", "--to", "Initech Inc", "--iban", ATTACKER).output

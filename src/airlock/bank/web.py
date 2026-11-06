@@ -9,7 +9,7 @@ from airlock.bank import ops
 
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Airlock Treasury Ledger</title>
+<title>Airlock Treasury Ledger</title><link rel="icon" href="data:,">
 <style>
 :root{--paper:#f3eee3;--ink:#1c1b18;--mute:#6f6a5e;--rule:#d8d1c0;--ok:#1d6b49;--tag:#e8e1cf;--font-d:ui-serif,Georgia,"Times New Roman",serif;--font-m:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
 @media (prefers-color-scheme:dark){:root{--paper:#16150f;--ink:#efe9d9;--mute:#a39c88;--rule:#38352a;--ok:#5fd19a;--tag:#25231a}}
@@ -30,6 +30,9 @@ tr.new{animation:in .45s cubic-bezier(.2,.7,.2,1)}
 @keyframes in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 .empty{color:var(--mute);padding:28px 0;font-family:var(--font-d);font-style:italic}
 .by{color:var(--ok)}
+h2{font:600 22px/1.2 var(--font-d);margin:44px 0 0}
+.pend{color:#a4540b;font-size:13px}@media (prefers-color-scheme:dark){.pend{color:#f0a35a}}
+td.acct{overflow-wrap:anywhere}
 @media (max-width:560px){.hide-s{display:none}}
 @media (prefers-reduced-motion:reduce){tr.new{animation:none}}
 </style></head><body><main>
@@ -39,6 +42,8 @@ tr.new{animation:in .45s cubic-bezier(.2,.7,.2,1)}
 <div class="out" id="out"></div></div>
 <table><thead><tr><th>Tx</th><th>Payee</th><th class="hide-s">Approved by</th><th class="n">Amount</th></tr></thead>
 <tbody id="rows"></tbody></table><div class="empty" id="empty">No transfers yet. Money moves only after the controller allows it.</div>
+<h2>Beneficiary list</h2>
+<table><thead><tr><th>Vendor</th><th>Pays only to</th><th class="hide-s">Verified</th></tr></thead><tbody id="payees"></tbody></table>
 </main><script>
 const fmt=c=>(c/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const seen=new Set();let first=true;
@@ -55,7 +60,16 @@ const cells=[[t.tx_id],[t.payee,t.payment_id+" \u00b7 "+t.iban],[t.approved_by],
 cells.forEach((c,i)=>{const td=document.createElement("td");
 if(i==2)td.className="hide-s by";if(i==3)td.className="n";
 td.append(c[0]);if(c[1]){td.append(document.createElement("br"));const s=document.createElement("span");s.className="out";s.textContent=c[1];td.append(s);}
-tr.append(td);});body.append(tr);}first=false;}catch(e){document.getElementById("live").textContent="offline"}}
+tr.append(td);});body.append(tr);}
+const pb=document.getElementById("payees");pb.textContent="";
+for(const b of d.beneficiaries||[]){const tr=document.createElement("tr");
+const key="b:"+b.vendor_id+":"+b.iban;if(!first&&!seen.has(key))tr.className="new";seen.add(key);
+const a=document.createElement("td"),c=document.createElement("td"),v=document.createElement("td");
+a.textContent=b.name;c.className="acct";c.textContent=b.iban;v.className="hide-s out";v.textContent=b.verified_at+" · "+b.verified_by;
+for(const p of (d.pending_changes||[]).filter(p=>p.vendor_id===b.vendor_id)){const s=document.createElement("div");s.className="pend";
+s.textContent="pending "+p.id+": → "+p.new_iban+" (callback by "+p.verified_by+"; waiting for the controller)";c.append(s);}
+tr.append(a,c,v);pb.append(tr);}
+first=false;}catch(e){document.getElementById("live").textContent="offline"}}
 tick();setInterval(tick,1000);
 </script></body></html>"""
 

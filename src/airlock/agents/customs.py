@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import date
@@ -16,6 +17,7 @@ from typing import Callable
 
 from airlock.agents import wire
 from airlock.agents.common import Names, apost, load_agent, resolve_room, same_agent, serve
+from airlock.bank import ops as bank_ops
 from airlock.customs import gate
 from airlock.erp.db import connect, erp_path, today
 from airlock.protocol import Message
@@ -117,12 +119,56 @@ class Intake:
         return Card(rid, text, cleared, len(decisions) - cleared)
 
 
+NOT_SPECIALIST = "only the AP specialist, a person, can record a bank-detail callback"
+
+
+def desk_line(sender: str, body: str, specialist: str | None,
+              record: Callable[[str, str, str, str], str]) -> str | None:
+    """Customs' second job: notarise the AP specialist's callback for a bank-detail change.
+
+    Who posted it comes from Switch's sender id, never from the message or a model. Returns the line to post,
+    or None when the message isn't a VERIFIED line at all (ordinary desk chat, which customs ignores).
+    ``record(vendor, iban, phone, verified_by)`` writes it to the bank and returns the bank's line.
+    """
+    v = wire.parse_verified(body)
+    if v is None:
+        return None
+    who = wire.person_username(sender)
+    if not specialist or who is None or who.casefold() != specialist.casefold():
+        return f"NOT RECORDED {v.vendor}: {NOT_SPECIALIST}"
+    try:
+        return record(v.vendor, v.iban, v.phone, who)
+    except bank_ops.BankError as e:
+        return f"NOT RECORDED {v.vendor}: {e}"
+
+
+def specialist_name() -> str | None:
+    """$AIRLOCK_SPECIALIST, else the username `airlock specialist` saved."""
+    from airlock.agents.common import runtime_dir
+    env = os.environ.get("AIRLOCK_SPECIALIST")
+    if env:
+        return env.strip()
+    try:
+        return (runtime_dir() / "specialist").read_text().strip() or None
+    except OSError:
+        return None
+
+
 async def run(names: Names | None = None) -> None:
     names = names or Names.from_env()
     agent = load_agent(names.customs)
     quarantine = await asyncio.to_thread(resolve_room, agent, names.quarantine)
     desk = await asyncio.to_thread(resolve_room, agent, names.desk)
     agent.rooms = (quarantine, desk)
+    agent.only_addressed = False  # the specialist's VERIFIED line mentions nobody; quarantine still needs a mention
+    specialist = specialist_name()
+
+    def record(vendor: str, iban: str, phone: str, who: str) -> str:
+        bank = bank_ops.connect()
+        try:
+            return bank_ops.record_verification(bank, vendor, iban, phone, who)
+        finally:
+            bank.close()
 
     def vendors() -> list[gate.Vendor]:
         conn = connect(erp_path(), readonly=True)
@@ -139,7 +185,13 @@ async def run(names: Names | None = None) -> None:
             await apost(agent, desk, card.text)
 
     async def on_message(msg: Message) -> None:
-        if msg.room_id != quarantine:
+        if msg.room_id == desk:
+            line = await asyncio.to_thread(desk_line, msg.sender, msg.body, specialist, record)
+            if line:
+                log.info("desk: %s", line)
+                await apost(agent, desk, line)
+            return
+        if msg.room_id != quarantine or not msg.addressed:
             return
         if same_agent(msg.sender_name, names.mailroom):
             env = wire.parse_envelope(msg.body)
@@ -158,5 +210,6 @@ async def run(names: Names | None = None) -> None:
             for card in intake.expire():
                 await deliver(card)
 
-    await serve(agent, on_message, banner=f"customs up: {names.quarantine} -> {names.desk}", extra=sweep)
+    await serve(agent, on_message, banner=f"customs up: {names.quarantine} -> {names.desk}; bank-detail callbacks "
+                                          f"from {specialist or 'nobody (no AP specialist set)'}", extra=sweep)
 
