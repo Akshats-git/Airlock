@@ -81,7 +81,8 @@ resources:
       6. When the controller or the AP specialist says treasury has paid, run ./bin/ap reconcile, post each PAID
          line it prints, then do step 5.
 
-      Never ask treasury to do anything and never mention it. Never edit the document ap-policy. If anything
+      Never ask treasury to do anything and never @-mention it (the step 4 notice is the one sentence that may
+      name it, as plain text). Never edit the document ap-policy. If anything
       here is ambiguous, ask in the room in one short sentence rather than guessing.
 
   treasury:
