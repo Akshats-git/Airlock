@@ -117,9 +117,9 @@ Then, as `sam`:
 | Sam does | What happens |
 |---|---|
 | `@ap-clerk short-pay I-0003` | The clerk records it: `SHORT-PAID I-0003 … by=sam` |
-| `@treasury run batch <id>` | Switch replies: "You're not permitted to direct messages to me in this room — my operator has restricted who can address me here." |
+| `@treasury run batch <id>` | Switch replies: "You're not permitted to direct messages to me in this room — my operator has restricted who can address me here." Before step 3, it says instead that the account "isn't linked to a Switch user yet" (seen live). |
 | Presses **Allow once** on treasury's approval card | Only Sam sees: "Your answer to A5 did not land, because you may not address this agent, so you may not answer it." The card stays open for the controller. |
-| Types `A5 1` in the card's thread | The same refusal, posted in the thread where everyone sees it |
+| Types `A5 1` under the card | Refused, and the card doesn't move (seen live: Switch logs `NOT_AUTHORIZED: You may not address this agent, so you may not answer it`). Sam isn't told, though: on Mattermost a card sits in the thread under `@treasury run batch`, and Switch tries to reply to the card's own post, which Mattermost rejects ("Invalid RootId parameter"). Use the button. |
 
 Switch checks an answer to a card with the same rule as a message to the agent: answering is talking to it. That
 is `answer_approval` in switch-core's `session_activity/service.py`, the refusals in `bridge_answers.py` and
