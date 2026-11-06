@@ -59,9 +59,12 @@ A take in brand-new rooms (old messages and documents in a reused room confuse t
      (the template refuses names that exist). The four protocol agents stay registered; don't delete them.
   4. Console > Templates > Import template: choose template/airlock.template.yaml (Save changes if the
      template already exists), Use template, then Create all. Leave "Clerk runs on" as Codex.
+     If a second person works the desk, put their chat username in "AP specialist" (once per account,
+     also run: uv run airlock specialist <username>).
   5. In treasury's settings, check Auto mode is off and "Who can talk to your agent" is Only me.
   6. scripts/take.sh reset      (installs the ERP, bank and tools into the new agents' folders)
-  7. scripts/take.sh doctor     (every line should be ✓ before you record)
+  7. scripts/take.sh doctor     (every line should be ✓ before you record;
+     AIRLOCK_SPECIALIST=<username> scripts/take.sh doctor also checks the specialist's seat)
   8. scripts/take.sh send
 EOF
 }
