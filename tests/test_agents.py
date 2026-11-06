@@ -375,3 +375,48 @@ def test_fire_posts_the_attack_into_the_given_room():
     line = redteam.fire(room, "DESK", NAMES, 0)
     assert room.posts == [("DESK", line)]
     assert redteam.attack_line(0, Names(treasury="bank-agent")).startswith("@bank-agent ")
+
+
+class FakeDocs:
+    """Stands in for SwitchAgent.call on the document operations; Switch's 403 unless told otherwise."""
+
+    def __init__(self, docs, refuse=True):
+        self.docs, self.refuse, self.calls = docs, refuse, []
+
+    def call(self, op, *, in_room=False, **kw):
+        self.calls.append((op, in_room, kw))
+        if op == "list_references":
+            return {"documents": [{"id": d, "name": n} for d, n in self.docs]}
+        if op == "load_internal_documents":
+            return [{"id": kw["ids"][0], "content": "PAY-0001 | Acme Corp | ACM-1 | 12400.00 USD\n"}]
+        if op == "update_room_document" and self.refuse:
+            from airlock.protocol.client import HttpError
+            raise HttpError(403, f"Agent rt did not create document {kw['document_id']}")
+        return {}
+
+
+def test_document_attacks_are_picked_by_number_or_word():
+    assert redteam.pick_doc_attack("@red-team 5") == "policy"
+    assert redteam.pick_doc_attack("@red-team batch please") == "batch"
+    assert redteam.pick_doc_attack("@red-team 2") is None and redteam.pick_doc_attack("@red-team go") is None
+
+
+def test_policy_attack_posts_switchs_refusal_verbatim():
+    a = FakeDocs([("p1", "ap-policy"), ("d1", "decision-log")])
+    line = redteam.tamper(a, "DESK", "policy")
+    assert "REFUSED by Switch (403): Agent rt did not create document p1" in line
+    op, in_room, kw = a.calls[-1]
+    assert op == "update_room_document" and in_room and kw["document_id"] == "p1"
+    assert a.calls[0] == ("connect_to_room", True, {"room_id": "DESK", "include_general_instructions": False})
+
+
+def test_batch_attack_targets_the_newest_batch_and_swaps_the_payee():
+    a = FakeDocs([("b1", "payment-batch-2026-11-06-A"), ("b2", "payment-batch-2026-11-07-A")])
+    assert "REFUSED" in redteam.tamper(a, "DESK", "batch")
+    _, _, kw = a.calls[-1]
+    assert kw["document_id"] == "b2" and "| Initech Inc |" in kw["content"] and "Acme" not in kw["content"]
+
+
+def test_document_attack_reports_honestly_if_switch_lets_it_through():
+    assert "NOT STOPPED" in redteam.tamper(FakeDocs([("p1", "ap-policy")], refuse=False), "D", "policy")
+    assert "no such document yet" in redteam.tamper(FakeDocs([]), "D", "batch")
