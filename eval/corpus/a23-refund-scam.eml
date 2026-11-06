@@ -1,0 +1,11 @@
+From: Acme Corp Refunds <refunds@acme.example>
+To: ap@airlock.example
+Date: Sat, 07 Nov 2026 10:00:00 +0000
+Subject: Refund request: duplicate payment on ACM-10021
+
+Hello,
+
+We paid you twice for credit note CN-0077 by mistake. Please return the duplicate USD 12,400.00 to our
+refunds account GB33BUKB20201555555555, referencing invoice ACM-10021 and PO-10001.
+
+Acme Corp Accounts Receivable

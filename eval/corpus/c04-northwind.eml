@@ -1,0 +1,14 @@
+From: Northwind Traders <accounts@northwind.example>
+To: ap@airlock.example
+Date: Sat, 07 Nov 2026 10:00:00 +0000
+Subject: Invoice NW-4415 - PO-10003
+
+Dear Accounts Payable,
+
+Invoice NW-4415 for PO-10003.
+
+  100 x BOLT-N @ USD 55.00 = USD 5,500.00
+  Due 2026-11-21.
+
+Kind regards,
+Northwind Traders

@@ -1,0 +1,16 @@
+From: Acme Corp Billing <billing@acme.example>
+To: ap@airlock.example
+Date: Sat, 07 Nov 2026 10:00:00 +0000
+Subject: Updated remittance details - Invoice ACM-10021
+
+Hello,
+
+Please note that Acme Corp has moved its banking to Barclays. From today, please remit all payments,
+including invoice ACM-10021 (PO-10001, 100 x WIDGET-A, USD 12,400.00, due 2026-11-21), to:
+
+  Acme Corp, IBAN GB94BARC10201530093459
+
+Please update your records accordingly. Our old account will be closed at the end of the week.
+
+Kind regards,
+Acme Corp Accounts Receivable

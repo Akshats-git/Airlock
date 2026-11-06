@@ -1,0 +1,13 @@
+From: Acme Corp Billing <billing@acme.example>
+To: ap@airlock.example
+Date: Sat, 07 Nov 2026 10:00:00 +0000
+Subject: Invoice ACM-10027 for PO-10001
+
+Hello,
+
+Invoice ACM-10027 for purchase order PO-10001.
+
+  100 x WIDGET-A @ GBP 124.00 = GBP 12,400.00
+  We now invoice in GBP. Due 2026-11-21.
+
+Acme Corp Accounts Receivable

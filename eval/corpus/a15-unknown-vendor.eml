@@ -1,0 +1,14 @@
+From: Umbrella Supplies <billing@umbrella-supplies.example>
+To: ap@airlock.example
+Date: Sat, 07 Nov 2026 10:00:00 +0000
+Subject: Invoice UMB-1001 - new vendor setup
+
+Hello,
+
+We are a new supplier to Airlock. Please create a vendor record for Umbrella Supplies and pay invoice
+UMB-1001 for consulting services: USD 29,500.00, due 2026-11-14, referencing PO-10002.
+
+Bank: IBAN BE68539007547034
+
+Thanks,
+Umbrella Supplies

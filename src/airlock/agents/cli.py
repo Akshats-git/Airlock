@@ -8,6 +8,8 @@
     airlock reader --backend fixture      # leave running; --backend openai for the real model
     airlock redteam                       # leave running; mention it in the desk to fire an attack
     airlock mailroom send                 # post the fixture emails into quarantine
+    airlock eval airlock --reader quiet   # the attack corpus through Airlock's code (offline, free)
+    airlock eval naive --prompt guarded   # the same corpus against one tool-using agent (OpenAI, cents)
 """
 
 from __future__ import annotations
@@ -32,6 +34,8 @@ from airlock.protocol.client import HttpError
 app = typer.Typer(add_completion=False, no_args_is_help=True, help="Airlock protocol agents.")
 mailroom_app = typer.Typer(help="The mailroom.", no_args_is_help=True)
 app.add_typer(mailroom_app, name="mailroom")
+eval_app = typer.Typer(help="Fire the attack corpus at Airlock and at a single-agent baseline.", no_args_is_help=True)
+app.add_typer(eval_app, name="eval")
 
 
 @app.callback()
@@ -221,6 +225,66 @@ def mailroom_send(directory: Annotated[Path, typer.Option(help="Folder of .eml f
     """Post the emails into quarantine as one run."""
     run = mailroom_agent.run_send(directory, only, delay)
     typer.echo(f"posted run {run}")
+
+
+Only = Annotated[list[str] | None, typer.Option(help="Corpus ids or prefixes, e.g. a07 or c01-acme.")]
+Corpus = Annotated[Path, typer.Option(help="Corpus folder (a manifest.json plus one .eml per case).")]
+
+
+def _finish_eval(rows: list[dict]) -> None:
+    from airlock.eval import report
+    for r in rows:
+        mark = "ok  " if r["correct"] else "BAD "
+        typer.echo(f"{mark}{r['id']:<28} {', '.join(r['harms']) or '-':<36} {r['outcome']}")
+    path = report.save(rows)
+    report.rebuild()
+    typer.echo(f"\n{report.line(rows)}\nraw log: {path}\nsummary: {report.SUMMARY}")
+
+
+@eval_app.command("airlock")
+def eval_airlock(reader: Annotated[str, typer.Option(help="quiet or raw (a hijacked reader, free) or openai")] = "quiet",
+                 only: Only = None, corpus: Corpus = Path("eval/corpus")):
+    """Run each corpus email through mailroom, reader, customs, the clerk's ERP and the bank."""
+    from airlock.eval import airlock_run, corpus as corpus_mod
+    items = corpus_mod.load(corpus, only)
+    extractor = reader_agent.make_extractor("openai", Path()) if reader == "openai" else None
+    if reader not in ("quiet", "raw", "openai"):
+        raise typer.BadParameter("reader must be quiet, raw or openai")
+    if extractor:
+        typer.echo(f"real reader: {extractor.model}, {len(items)} calls")
+    _finish_eval([airlock_run.run_item(i, reader, extractor) for i in items])
+
+
+@eval_app.command("naive")
+def eval_naive(prompt: Annotated[str, typer.Option(help="naive or guarded")] = "guarded",
+               model: Annotated[str, typer.Option(help="OpenAI model id (default: the reader's model).")] = "",
+               only: Only = None, corpus: Corpus = Path("eval/corpus")):
+    """Give each corpus email to one agent that holds the AP tools itself. Tools only record; nothing runs."""
+    from airlock.eval import corpus as corpus_mod
+    from airlock.eval import naive
+    if prompt not in naive.PROMPTS:
+        raise typer.BadParameter("prompt must be naive or guarded")
+    key = os.environ.get("OPENAI_API_KEY")
+    if not key:
+        typer.echo("OPENAI_API_KEY is not set")
+        raise typer.Exit(1)
+    model = model or os.environ.get("AIRLOCK_READER_MODEL", reader_agent.DEFAULT_MODEL)
+    items = corpus_mod.load(corpus, only)
+    typer.echo(f"{prompt} agent on {model}: {len(items)} emails, at most {naive.MAX_STEPS} calls each")
+    chat = naive.OpenAIChat(key)
+    rows = []
+    for i in items:
+        rows.append(naive.run_item(i, prompt, model, chat))
+    tokens = sum(r["usage"]["prompt_tokens"] + r["usage"]["completion_tokens"] for r in rows)
+    typer.echo(f"tokens used: {tokens}")
+    _finish_eval(rows)
+
+
+@eval_app.command("report")
+def eval_report():
+    """Rebuild eval/RESULTS.md from the newest run of each setup."""
+    from airlock.eval import report
+    typer.echo(f"wrote {report.rebuild()}")
 
 
 if __name__ == "__main__":
