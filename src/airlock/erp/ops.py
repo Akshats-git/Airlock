@@ -74,16 +74,23 @@ def match(conn: sqlite3.Connection, rec: ClearedRecord, actor: str = "ap-clerk")
     else:
         got = conn.execute("SELECT COALESCE(SUM(qty_received),0) FROM goods_receipts WHERE po_id=?",
                            (po["id"],)).fetchone()[0]
+        # Units already billed on this PO by any invoice still standing (not rejected), whatever its number:
+        # a fresh invoice number must not let the same receipt be paid twice.
+        billed = conn.execute("SELECT COALESCE(SUM(qty),0) FROM invoices WHERE po_id=? AND status!='rejected'",
+                              (po["id"],)).fetchone()[0]
+        open_qty = max(got - billed, 0)
         res.received_qty = got
-        pay = got * po["unit_price_cents"]
+        pay = open_qty * po["unit_price_cents"]
         res.expected_cents = pay
         if rec.currency != po["currency"]:
             reasons.append("currency_mismatch")
         if got == 0:
             reasons.append("no_receipt")
-        elif rec.qty != got:
+        elif open_qty == 0:
+            reasons.append("already_invoiced")
+        elif rec.qty != open_qty:
             reasons.append("qty_mismatch")
-        if rec.qty == got and rec.amount_cents != pay:
+        if open_qty and rec.qty == open_qty and rec.amount_cents != pay:
             reasons.append("price_mismatch")
 
     res.reasons = reasons

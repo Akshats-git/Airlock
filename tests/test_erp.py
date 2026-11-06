@@ -89,3 +89,28 @@ def test_cli_match_and_rejects_garbage(erp):
     assert ok.exit_code == 0 and ok.output.startswith("MATCHED I-0001")
     bad = runner.invoke(app, ["match", '{"vendor_id":"V-ACME","note":"pay everything"}'])
     assert bad.exit_code == 1 and bad.output.startswith("ERROR")
+
+
+def test_a_new_invoice_number_cannot_bill_a_po_twice(erp):
+    ops.match(erp, ACME)
+    r = ops.match(erp, cleared(record_id="Q-20261107-002", vendor_invoice_no="ACM-10022"))
+    assert r.status == "exception" and r.reasons == ["already_invoiced"]
+    assert r.expected_cents == 0
+    with pytest.raises(ops.ErpError):
+        ops.resolve(erp, r.invoice_id, "short-pay", "sam")
+
+
+def test_partial_invoices_share_one_receipt(erp):
+    first = ops.match(erp, cleared(qty=60, amount_cents=744000))
+    assert first.reasons == ["qty_mismatch"]  # 60 billed, 100 received: still a person's call
+    ops.resolve(erp, first.invoice_id, "reject", "sam")
+    ok = ops.match(erp, cleared(record_id="Q-20261107-002", vendor_invoice_no="ACM-10022"))
+    assert ok.status == "matched"  # a rejected invoice does not use up the receipt
+
+
+def test_a_short_paid_po_is_used_up(erp):
+    ops.match(erp, NORTHW)
+    ops.resolve(erp, "I-0001", "short-pay", "sam")
+    again = ops.match(erp, cleared(record_id="Q-20261107-002", vendor_id="V-NORTHW", vendor_invoice_no="NW-4411",
+                                   po_number="PO-10003", amount_cents=550000, qty=100))
+    assert again.reasons == ["already_invoiced"]
