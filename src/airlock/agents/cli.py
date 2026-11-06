@@ -2,6 +2,7 @@
 
     airlock reg-key                       # once; signs in as the server admin, saves a registration key
     airlock register                      # once; registers the four protocol agents with that key
+    airlock specialist sam                # once; gives the second person's chat account its own Switch user
     airlock doctor                        # checks the walls on the live server
     airlock archive-rooms                 # before a fresh take: archive the old ap-quarantine and ap-desk
     airlock customs                       # leave running
@@ -91,6 +92,21 @@ def reg_key(email: Annotated[str | None, typer.Option(help="The server admin's e
 
 
 @app.command()
+def specialist(username: Annotated[str, typer.Argument(help="The second person's chat username, e.g. sam.")],
+               email: Annotated[str | None, typer.Option(help="The server admin's email (or SWITCH_ADMIN_EMAIL).")] = None):
+    """Give the AP specialist's chat account its own Switch user, so treasury refuses them by name."""
+    email = email or os.environ.get("SWITCH_ADMIN_EMAIL") or typer.prompt("Switch admin email")
+    password = os.environ.get("SWITCH_ADMIN_PASSWORD") or typer.prompt("Password", hide_input=True)
+    api = _found(api_url)
+    try:
+        typer.echo(gateway.link_specialist(api, gateway.login(api, email, password), username))
+    except gateway.GatewayError as e:
+        typer.echo(f"Couldn't link {username}: {e}")
+        raise typer.Exit(1)
+    typer.echo(f"Next: add {username} to ap-desk in Mattermost (channel menu > Add members), not to ap-quarantine.")
+
+
+@app.command()
 def paths(shell: Annotated[bool, typer.Option("--shell", help="Print as shell exports.")] = False):
     """Where the server and the agents' folders are on this machine."""
     api = _found(api_url)
@@ -132,7 +148,9 @@ def doctor():
     if checks[-1].status == dr.OK:
         try:
             agent = load_agent(names.customs)
-            checks += dr.walls(agent.call("list_rooms"), lambda rid: agent.call("get_room_detail", room_id=rid), names)
+            rooms, detail = agent.call("list_rooms"), (lambda rid: agent.call("get_room_detail", room_id=rid))
+            checks += dr.walls(rooms, detail, names)
+            checks += dr.people(rooms, detail, names, os.environ.get("AIRLOCK_SPECIALIST"))
             checks += dr.addressing(agent.call("list_agents"), names)
         except (HttpError, OSError) as e:
             checks.append(dr.Check(dr.FAIL, f"the server refused customs: {e}", "is the local server running?"))

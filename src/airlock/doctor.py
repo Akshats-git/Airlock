@@ -94,6 +94,26 @@ def walls(rooms: list[dict], detail: Callable[[str], dict], names: Names) -> lis
     return out
 
 
+def people(rooms: list[dict], detail: Callable[[str], dict], names: Names, specialist: str | None) -> list[Check]:
+    """Which people sit in which room. The specialist works the desk and never reads raw vendor mail."""
+    q, _ = _one_room(rooms, names.quarantine)
+    d, _ = _one_room(rooms, names.desk)
+    if q is None or d is None:
+        return []  # walls() has already said so
+    in_q = set(detail(q["room_id"]).get("connected_user_names", []))
+    in_d = set(detail(d["room_id"]).get("connected_user_names", []))
+    if not specialist:
+        return [Check(OK, f"people in {names.desk}: {', '.join(sorted(in_d)) or 'none'}",
+                      "set AIRLOCK_SPECIALIST=<chat username> to check the specialist's seat")]
+    if specialist in in_q:
+        return [Check(FAIL, f"the specialist {specialist} is in {names.quarantine}",
+                      f"remove them from the {names.quarantine} channel: only the controller reads raw vendor mail")]
+    if specialist not in in_d:
+        return [Check(WARN, f"the specialist {specialist} is not in {names.desk}",
+                      f"add them to the {names.desk} channel in Mattermost, then: uv run airlock specialist {specialist}")]
+    return [Check(OK, f"the specialist {specialist} is in {names.desk} and not in {names.quarantine}")]
+
+
 def _owner_only(policy: dict | None) -> bool:
     rules = (policy or {}).get("rules") or []
     return bool(rules) and all(r.get("owner") and not r.get("owner_agents") and not r.get("users")

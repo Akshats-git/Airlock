@@ -76,7 +76,8 @@ set `AIRLOCK_API` or `AIRLOCK_AGENTS_DIR` to override.
 4. **Register the four protocol agents:** `uv run airlock register`.
 5. **Create the desk.** In Console, Templates > Import template, paste
    [template/airlock.template.yaml](template/airlock.template.yaml), and Create all. Keep "Clerk runs on" as
-   Codex for the sandboxed clerk. Optionally enter the AP specialist's chat username.
+   Codex for the sandboxed clerk. Optionally enter the AP specialist's chat username (see
+   [A second person at the desk](#a-second-person-at-the-desk)).
 6. **Put the data where the agents live and start the listeners:** `scripts/take.sh reset`. It installs the
    ERP, the bank and the `./bin/ap` and `./bin/bank` tools into the agents' folders, then starts customs, the
    reader, the red team and the ledger page. For the real reader model:
@@ -94,6 +95,35 @@ set `AIRLOCK_API` or `AIRLOCK_AGENTS_DIR` to override.
 For a second take, use brand-new rooms: `scripts/take.sh fresh` lists the steps, starting with
 `uv run airlock archive-rooms`. A reused room still holds the earlier batch, and the clerk rightly asks whether
 it is a re-run.
+
+## A second person at the desk
+
+The exception is the AP specialist's to decide; the payments are the controller's. With a second chat account in
+`ap-desk`, Switch shows the difference: the clerk takes the specialist's decision, and treasury refuses them.
+
+1. **Make the account.** In Mattermost, main menu > Invite People, copy the invite link, open it in a private
+   window and sign up (for example as `sam`). Console's Mattermost allows sign-up.
+2. **Seat them.** Add `sam` to `ap-desk` (channel name > Add members), never to `ap-quarantine`. Or enter the
+   username in the template's "AP specialist" field when you create the desk.
+3. **Give them a Switch identity:** `uv run airlock specialist sam` (admin sign-in, as for `reg-key`). It creates
+   a Switch user "AP specialist" and links `sam` to it. Without that, Switch can't tell who the account is, and
+   treasury's refusal asks for the account to be linked instead of refusing a known person. Nobody signs in as
+   that user; its password is random and never shown. The command refuses an account someone else has already
+   linked, because Switch would then treat it as that person.
+4. **Check the seat:** `AIRLOCK_SPECIALIST=sam scripts/take.sh doctor`.
+
+Then, as `sam`:
+
+| Sam does | What happens |
+|---|---|
+| `@ap-clerk short-pay I-0003` | The clerk records it: `SHORT-PAID I-0003 … by=sam` |
+| `@treasury run batch <id>` | Switch replies: "You're not permitted to direct messages to me in this room — my operator has restricted who can address me here." |
+| Presses **Allow once** on treasury's approval card | Only Sam sees: "Your answer to A5 did not land, because you may not address this agent, so you may not answer it." The card stays open for the controller. |
+| Types `A5 1` in the card's thread | The same refusal, posted in the thread where everyone sees it |
+
+Switch checks an answer to a card with the same rule as a message to the agent: answering is talking to it. That
+is `answer_approval` in switch-core's `session_activity/service.py`, the refusals in `bridge_answers.py` and
+`delivery/addressing.py`.
 
 ## See the walls hold
 
@@ -125,7 +155,7 @@ controller sees exactly where each payment is going on the approval card.
 
 ## What has been checked
 
-- `make test`: 282 tests, covering the protocol client, the schema gate, the ERP and bank checks, the agents'
+- `make test`: 287 tests, covering the protocol client, the schema gate, the ERP and bank checks, the agents'
   message handling, the red team, the setup tools and the template. The template tests parse it with Switch's
   own parser and pin the walls: who may instruct treasury, who is in which room, no agent in bypass mode.
 - **A hijacked reader.** Nineteen hostile reader outputs (instructions in every field, `@treasury` mentions,

@@ -245,3 +245,18 @@ def test_archive_keeps_going_after_a_refusal():
     out = rm.archive(call, [{"room_id": "q", "name": "ap-quarantine"}, {"room_id": "d", "name": "ap-desk"}])
     assert seen == [("archive_room", "q"), ("archive_room", "d")]
     assert [bool(o.error) for o in out] == [True, False] and "403" in out[0].error
+
+
+def _people(q_people, d_people):
+    def detail(rid):
+        return {"connected_user_names": q_people if rid == "q" else d_people}
+    return detail
+
+
+def test_doctor_checks_the_specialists_seat():
+    seat = lambda q, d: dr.people(ROOMS, _people(q, d), N, "sam")[0]  # noqa: E731
+    assert seat(["akshat"], ["akshat", "sam"]).status == dr.OK
+    assert seat(["akshat", "sam"], ["akshat", "sam"]).status == dr.FAIL  # must never read raw vendor mail
+    assert seat(["akshat"], ["akshat"]).status == dr.WARN
+    unnamed = dr.people(ROOMS, _people(["akshat"], ["akshat", "sam"]), N, None)[0]
+    assert unnamed.status == dr.OK and "akshat, sam" in unnamed.label
