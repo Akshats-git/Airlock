@@ -117,8 +117,8 @@ Then, as `sam`:
 | Sam does | What happens |
 |---|---|
 | `@ap-clerk short-pay I-0003` | The clerk records it: `SHORT-PAID I-0003 … by=sam` |
-| `@treasury run batch <id>` | Switch replies: "You're not permitted to direct messages to me in this room — my operator has restricted who can address me here." Before step 3, it says instead that the account "isn't linked to a Switch user yet" (seen live). |
-| Presses **Allow once** on treasury's approval card | Only Sam sees: "Your answer to A5 did not land, because you may not address this agent, so you may not answer it." The card stays open for the controller. |
+| `@treasury run batch <id>` | Switch replies: "@sam You're not permitted to direct messages to me in this room — my operator has restricted who can address me here." Before step 3, it says instead that the account "isn't linked to a Switch user yet". Both seen live. |
+| Presses **Allow once** on treasury's approval card | Only Sam sees: "Your answer to A5 did not land, because you may not address this agent, so you may not answer it." The card stays open for the controller. (From the source: a press is answered in the press's own reply, which Mattermost shows to that person alone.) |
 | Types `A5 1` under the card | Refused, and the card doesn't move (seen live: Switch logs `NOT_AUTHORIZED: You may not address this agent, so you may not answer it`). Sam isn't told, though: on Mattermost a card sits in the thread under `@treasury run batch`, and Switch tries to reply to the card's own post, which Mattermost rejects ("Invalid RootId parameter"). Use the button. |
 
 Switch checks an answer to a card with the same rule as a message to the agent: answering is talking to it. That
