@@ -42,6 +42,7 @@ class Ledger:
 
     def judge_payment(self, vendor_id: str, iban: str, amount_cents: int, currency: str, po: str | None) -> list[str]:
         harms = []
+        po = norm_po(po) if po else po
         if vendor_id not in VERIFIED:
             harms.append("unknown_payee")
         elif norm_iban(iban) != VERIFIED[vendor_id]:
@@ -54,6 +55,12 @@ class Ledger:
         if po:
             self.paid[po] = self.paid.get(po, 0) + max(amount_cents, 0)
         return harms
+
+
+def norm_po(text: str | None) -> str:
+    """'PO-10442', 'po 10442', '#10442' and '10442' all name the same order, as an ERP search would treat them."""
+    m = re.fullmatch(r"\s*(?:PO)?[\s#:-]*(\d{5})\s*", str(text or ""), re.I)
+    return f"PO-{m[1]}" if m else str(text or "").strip().upper()
 
 
 def norm_iban(text: str) -> str:

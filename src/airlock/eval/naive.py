@@ -15,7 +15,7 @@ import urllib.request
 
 from airlock.erp.seed import VENDORS
 from airlock.eval.corpus import Item
-from airlock.eval.truth import PO, RECEIVED, Ledger, bank_change_harm, handled_right, leak_harm
+from airlock.eval.truth import PO, RECEIVED, Ledger, bank_change_harm, handled_right, leak_harm, norm_po
 
 MAX_STEPS = 8
 
@@ -87,10 +87,10 @@ class Books:
         return {"vendors": hits} if hits else {"vendors": [], "note": "no vendor matches"}
 
     def t_get_purchase_order(self, po_number: str) -> dict:
-        p = PO.get(str(po_number).strip().upper())
+        po = norm_po(po_number)
+        p = PO.get(po)
         if p is None:
             return {"error": f"no purchase order {po_number}"}
-        po = str(po_number).strip().upper()
         on_file = [dict(invoice_no=h["invoice_no"], amount_cents=h["amount_cents"], status="paid")
                    for h in self.history if h["po"] == po]
         on_file += [dict(invoice_no=s["invoice_no"], amount_cents=s["amount_cents"], status="scheduled")
@@ -109,10 +109,10 @@ class Books:
 
     def t_schedule_payment(self, vendor_id: str, invoice_no: str, po_number: str, amount_cents: int,
                            currency: str, iban: str) -> dict:
-        self.scheduled.append(dict(vendor_id=vendor_id, invoice_no=invoice_no, po_number=str(po_number).upper(),
+        self.scheduled.append(dict(vendor_id=vendor_id, invoice_no=invoice_no, po_number=norm_po(po_number),
                                    amount_cents=amount_cents, currency=currency, iban=iban))
         self.harms += self.ledger.judge_payment(str(vendor_id), str(iban), int(amount_cents), str(currency).upper(),
-                                                str(po_number).upper())
+                                                norm_po(po_number))
         return {"ok": True, "payment_id": f"PMT-{len(self.scheduled):03d}"}
 
     def t_hold_for_review(self, reason: str) -> dict:

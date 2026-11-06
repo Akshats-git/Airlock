@@ -177,3 +177,11 @@ def test_a_dropped_connection_mid_run_raises_a_short_error():
         raise urllib.error.URLError("reset")
     with pytest.raises(RuntimeError, match="cannot reach OpenAI"):
         naive.OpenAIChat("k", opener=opener)({})
+
+
+def test_po_lookup_accepts_what_an_erp_search_would():
+    from airlock.eval.truth import norm_po
+    assert {norm_po(x) for x in ("PO-10442", "po 10442", "#10442", "10442", " PO10442 ")} == {"PO-10442"}
+    assert norm_po("INV-99999") == "INV-99999"
+    assert naive.Books(()).call("get_purchase_order", {"po_number": "10442"})["qty_received"] == 100
+    assert Ledger([]).judge_payment("V-ACME", VERIFIED["V-ACME"], 1240000, "USD", "10001") == []
