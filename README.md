@@ -170,9 +170,10 @@ controller sees exactly where each payment is going on the approval card.
   the real one ([tests/test_bank.py](tests/test_bank.py)).
 - **Live runs on Switch 0.31.0.** Intake through reconcile, with the three payments, Allow once and Decline on
   the approval cards, the ledger, the refusal of every red-team order to treasury, and Switch's 403 on both
-  document attacks. The latest full run had the clerk on Codex (`gpt-6-luna`): three cleared, one held, one
-  exception short-paid, three payments approved with Allow once, reconciled, then both document attacks
-  refused. One run with `gpt-4o-mini` as the reader produced the same outcome as the recorded
+  document attacks. The latest full run (7 November) had the clerk on Codex (`gpt-6-luna`) and a second person, `sam`, in the
+  desk: three cleared, one held, Sam's short-pay recorded `by=sam`, Sam refused by treasury both on an
+  @-mention and on the approval card, then three payments approved with Allow once, each card naming the
+  account, the ledger at 977,800.00, and the clerk reconciled all three. One run with `gpt-4o-mini` as the reader produced the same outcome as the recorded
   fixtures: three cleared, Initech held. The attack corpus below has since been run through the real reader
   twice.
 
