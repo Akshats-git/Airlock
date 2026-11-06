@@ -221,3 +221,26 @@ def test_doctor_report_fails_only_on_failures():
     _, ok = dr.report([dr.Check(dr.OK, "a"), dr.Check(dr.WARN, "b")])
     text, bad = dr.report([dr.Check(dr.FAIL, "c", "do x")])
     assert ok and not bad and "-> do x" in text
+
+
+# ---- airlock archive-rooms -----------------------------------------------------------------------
+
+def test_only_live_desk_rooms_are_archived():
+    from airlock import rooms as rm
+    rooms = ROOMS + [{"room_id": "t", "name": "Mattermost: Town Square", "archived": False}]
+    assert [r["room_id"] for r in rm.live_desk_rooms(rooms, N)] == ["q", "d"]  # not the archived one, not Town Square
+
+
+def test_archive_keeps_going_after_a_refusal():
+    from airlock import rooms as rm
+    seen = []
+
+    def call(op, **kw):
+        seen.append((op, kw["room_id"]))
+        if kw["room_id"] == "q":
+            raise RuntimeError("403 not a member")
+        return {}
+
+    out = rm.archive(call, [{"room_id": "q", "name": "ap-quarantine"}, {"room_id": "d", "name": "ap-desk"}])
+    assert seen == [("archive_room", "q"), ("archive_room", "d")]
+    assert [bool(o.error) for o in out] == [True, False] and "403" in out[0].error

@@ -53,12 +53,13 @@ fresh() {
   cat <<'EOF'
 A take in brand-new rooms (old messages and documents in a reused room confuse the clerk):
   1. scripts/take.sh stop
-  2. In Mattermost or Console, archive the old ap-quarantine and ap-desk.
-  3. In Console, delete the agents ap-clerk and treasury (the template refuses names that exist).
-     The four protocol agents stay registered; don't delete them.
-  4. Console > Templates > Import template: paste template/airlock.template.yaml, then Create all.
-     Leave "Clerk runs on" as Codex for the sandboxed clerk.
-  5. In treasury's settings, check Auto mode is off.
+  2. uv run airlock archive-rooms   (archives the old rooms in Switch; do this BEFORE step 4)
+     Then archive the same two channels in Mattermost so they leave the sidebar.
+  3. In Console, Agents: open ap-clerk, Danger zone > Delete agent..., then the same for treasury
+     (the template refuses names that exist). The four protocol agents stay registered; don't delete them.
+  4. Console > Templates > Import template: choose template/airlock.template.yaml (Save changes if the
+     template already exists), Use template, then Create all. Leave "Clerk runs on" as Codex.
+  5. In treasury's settings, check Auto mode is off and "Who can talk to your agent" is Only me.
   6. scripts/take.sh reset      (installs the ERP, bank and tools into the new agents' folders)
   7. scripts/take.sh doctor     (every line should be ✓ before you record)
   8. scripts/take.sh send

@@ -3,6 +3,7 @@
     airlock reg-key                       # once; signs in as the server admin, saves a registration key
     airlock register                      # once; registers the four protocol agents with that key
     airlock doctor                        # checks the walls on the live server
+    airlock archive-rooms                 # before a fresh take: archive the old ap-quarantine and ap-desk
     airlock customs                       # leave running
     airlock reader --backend fixture      # leave running; --backend openai for the real model
     airlock redteam                       # leave running; mention it in the desk to fire an attack
@@ -140,6 +141,39 @@ def doctor():
     text, ok = dr.report(checks)
     typer.echo(text)
     raise typer.Exit(0 if ok else 1)
+
+
+@app.command("archive-rooms")
+def archive_rooms(yes: Annotated[bool, typer.Option("--yes", "-y", help="Don't ask first.")] = False):
+    """Archive the live ap-quarantine and ap-desk rooms (reversible). Run it BEFORE importing the template again,
+    or it will archive the new rooms too."""
+    from airlock import rooms as rm
+
+    names = Names.from_env()
+    try:
+        agent = load_agent(names.customs)
+    except FileNotFoundError:
+        typer.echo("The protocol agents aren't registered yet: uv run airlock reg-key && uv run airlock register")
+        raise typer.Exit(1)
+    try:
+        rooms = rm.live_desk_rooms(agent.call("list_rooms"), names)
+    except (HttpError, OSError) as e:
+        typer.echo(f"The server refused customs: {e}. Is the local server running?")
+        raise typer.Exit(1)
+    if not rooms:
+        typer.echo(f"No live {names.quarantine} or {names.desk} room. Nothing to do.")
+        return
+    typer.echo("Will archive in Switch (reversible, messages kept):")
+    for r in rooms:
+        typer.echo(f"  {r['name']}  {r['room_id']}")
+    typer.echo("Archive the same channels in Mattermost yourself so they leave the sidebar.")
+    if not yes and not typer.confirm("Archive these rooms?"):
+        raise typer.Exit(1)
+    failed = 0
+    for o in rm.archive(agent.call, rooms):
+        failed += bool(o.error)
+        typer.echo(f"{'FAILED ' if o.error else 'archived'} {o.name}" + (f": {o.error}" if o.error else ""))
+    raise typer.Exit(1 if failed else 0)
 
 
 @app.command()

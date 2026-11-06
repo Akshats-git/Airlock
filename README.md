@@ -91,8 +91,9 @@ set `AIRLOCK_API` or `AIRLOCK_AGENTS_DIR` to override.
      each approval card (it may open in the thread under your message).
    - Then `@ap-clerk treasury has paid`, and the clerk reconciles the ledger.
 
-For a second take, use brand-new rooms: `scripts/take.sh fresh` lists the steps. A reused room still holds
-the earlier batch, and the clerk rightly asks whether it is a re-run.
+For a second take, use brand-new rooms: `scripts/take.sh fresh` lists the steps, starting with
+`uv run airlock archive-rooms`. A reused room still holds the earlier batch, and the clerk rightly asks whether
+it is a re-run.
 
 ## See the walls hold
 
@@ -182,6 +183,7 @@ src/airlock/erp/, bank/      the mock ERP (`ap`), the mock bank (`bank`) and its
 src/airlock/doctor.py        `airlock doctor`: the walls, checked against the live server
 src/airlock/local.py         finds the server's port and the agents' folders
 src/airlock/gateway.py       `airlock reg-key`: a registration key from your own server
+src/airlock/rooms.py         `airlock archive-rooms`: retire the old rooms before a fresh take
 template/                    the Switch template
 fixtures/                    four emails and the records the reader should produce
 scripts/take.sh              reset, send, doctor, status, stop, fresh
