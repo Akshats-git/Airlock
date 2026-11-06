@@ -131,7 +131,9 @@ amount or account from an email. The bank tool refuses a payee or amount that di
   Codex agent, nothing moves.
 - **Live runs on Switch 0.31.0.** Intake through reconcile, with the three payments, Allow once and Decline on
   the approval cards, the ledger, the refusal of every red-team order to treasury, and Switch's 403 on both
-  document attacks. One run with `gpt-4o-mini` as the reader produced the same outcome as the recorded
+  document attacks. The latest full run had the clerk on Codex (`gpt-6-luna`): three cleared, one held, one
+  exception short-paid, three payments approved with Allow once, reconciled, then both document attacks
+  refused. One run with `gpt-4o-mini` as the reader produced the same outcome as the recorded
   fixtures: three cleared, Initech held. That is one run, not a measured rate.
 
 ## Limits, stated plainly
@@ -140,8 +142,8 @@ amount or account from an email. The bank tool refuses a payee or amount that di
   Switch runs it in Codex's `workspace-write` sandbox, and the isolation test shows the bank tool can't write its
   ledger from there. In Codex's auto mode a request to leave the sandbox goes to Codex's automatic reviewer,
   not to a person. With the clerk on Claude Code there is no sandbox: the clerk could run treasury's bank tool
-  itself and pay without an approval card, and only the model's own judgment stops it. Our live runs so far
-  used Claude Code for the clerk. For real money, run treasury on its own machine (Switch's `machine`
+  itself and pay without an approval card, and only the model's own judgment stops it. The full run has been
+  done live with the clerk on Codex (`gpt-6-luna`) and earlier ones with Claude Code. For real money, run treasury on its own machine (Switch's `machine`
   setting), so its tool isn't reachable from the clerk at all.
 - The ERP and the bank are test doubles behind command-line tools, built to be swapped for real APIs. The
   Switch setup, the agents, the rooms and the enforcement are real.
