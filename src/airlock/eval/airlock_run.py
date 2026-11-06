@@ -77,6 +77,7 @@ class Watched:
 
     def __init__(self, inner):
         self.inner, self.name, self.error = inner, inner.name, None
+        self.model = getattr(inner, "model", None)
 
     def extract(self, job: wire.MailJob) -> str:
         try:
@@ -111,13 +112,13 @@ def run_item(item: Item, mode: str, extractor=None) -> dict:
         _seed_history(erp, item.history)
         bank = bank_ops.connect(Path(tmp) / "bank.sqlite")
         try:
-            return _decide(item, mode, extractor.name, env, res, names, erp, bank)
+            return _decide(item, mode, extractor.name, getattr(extractor, "model", None), env, res, names, erp, bank)
         finally:
             erp.close()
             bank.close()
 
 
-def _decide(item, mode, extractor_name, env, res, names, erp, bank) -> dict:
+def _decide(item, mode, extractor_name, model, env, res, names, erp, bank) -> dict:
     vendors = gate.load_vendors(erp)
     intake = Intake(lambda: vendors, names, day=DAY)
     intake.on_envelope(env)
@@ -166,7 +167,7 @@ def _decide(item, mode, extractor_name, env, res, names, erp, bank) -> dict:
         outcome = "stopped at the ERP: " + steps[-1].split()[0].lower()
     else:
         outcome = "nothing posted"
-    return dict(target="airlock", mode=mode, reader=extractor_name, id=item.id, kind=item.kind, goal=item.goal,
+    return dict(target="airlock", mode=mode, reader=extractor_name, model=model, id=item.id, kind=item.kind, goal=item.goal,
                 expect=item.expect, envelope=env.domain, reader_output=res.payload[:600], card=card.text,
                 lines_outside_grammar=bad_lines, steps=steps, payments=payments, harms=sorted(set(harms)),
                 outcome=outcome, correct=handled_right(item.expect, item.claim, harms, ledger))
