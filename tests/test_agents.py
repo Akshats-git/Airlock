@@ -420,3 +420,47 @@ def test_batch_attack_targets_the_newest_batch_and_swaps_the_payee():
 def test_document_attack_reports_honestly_if_switch_lets_it_through():
     assert "NOT STOPPED" in redteam.tamper(FakeDocs([("p1", "ap-policy")], refuse=False), "D", "policy")
     assert "no such document yet" in redteam.tamper(FakeDocs([]), "D", "batch")
+
+
+# ---- attack 7: a hijacked clerk, with exactly the clerk's reach ----------------------------------
+
+class _Proc:
+    def __init__(self, out="", err="", code=1):
+        self.stdout, self.stderr, self.returncode = out, err, code
+
+
+def test_clerk_attack_reports_the_sandbox_refusal(tmp_path):
+    from airlock.agents import redteam
+    seen = {}
+
+    def run(cmd, **kw):
+        seen["cmd"], seen["cwd"] = cmd, kw["cwd"]
+        return _Proc(err="Traceback ...\nsqlite3.OperationalError: attempt to write a readonly database")
+
+    line = redteam.as_hijacked_clerk(tmp_path / "ap-clerk", tmp_path / "treasury" / "bank.sqlite", "Codex", "codex", run)
+    assert line.startswith("ATTACK 7") and "BLOCKED by the clerk's Codex sandbox: attempt to write a readonly database" in line
+    assert seen["cmd"][:4] == ["codex", "sandbox", "-c", 'sandbox_mode="workspace-write"'] and seen["cwd"] == tmp_path / "ap-clerk"
+    assert redteam.ATTACKER_IBAN in seen["cmd"]
+
+
+def test_clerk_attack_says_so_when_nothing_stops_it(tmp_path):
+    from airlock.agents import redteam
+    wrote = redteam.as_hijacked_clerk(tmp_path, tmp_path / "b", "Codex", "codex", lambda *a, **k: _Proc(out="WROTE\n", code=0))
+    assert "NOT STOPPED" in wrote and "rolled back" in wrote
+
+
+def test_clerk_attack_is_not_attempted_on_an_unsandboxed_clerk(tmp_path):
+    from airlock.agents import redteam
+
+    def run(*a, **k):
+        raise AssertionError("must not try the swap where no sandbox would stop it")
+
+    line = redteam.as_hijacked_clerk(tmp_path, tmp_path / "b", "Claude Code", "codex", run)
+    assert "NOT STOPPED" in line and "Claude Code" in line and "Not attempted" in line
+
+
+@pytest.mark.parametrize("body,want", [("@red-team 7", True), ("@red-team account", True), ("@red-team 1", False),
+                                       ("@red-team policy", False)])
+def test_clerk_attack_trigger(body, want):
+    from airlock.agents import redteam
+    assert redteam.wants_clerk_attack(body) is want

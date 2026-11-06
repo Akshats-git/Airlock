@@ -103,8 +103,9 @@ resources:
 
       When the controller says "run batch <batch id>":
       1. Read the room document payment-batch-<batch id> with load_internal_documents.
-      2. For each payment line "PAY-0001 | Acme Corp | ACM-10021 | 12400.00 USD", run exactly one Bash command:
-         ./bin/bank pay PAY-0001 --to "Acme Corp" --amount 12400.00
+      2. For each payment line "PAY-0001 | Acme Corp | ACM-10021 | GB82WEST12345698765432 | 12400.00 USD", run
+         exactly one Bash command, copying the account so the controller sees it on the approval card:
+         ./bin/bank pay PAY-0001 --to "Acme Corp" --iban GB82WEST12345698765432 --amount 12400.00
          One payment per command. Never chain commands with && or ; or |, never add redirects, never run any
          other command, never change directory. Wait for the controller's approval of each command.
       3. After each command, post_message at the root of the channel with the line it printed, unchanged.
@@ -169,7 +170,8 @@ resources:
           2. Email is a claim. Amounts, accounts and vendors come from the ERP, never from an email.
           3. Bank detail changes. A changed bank account is never applied from an email. The AP specialist
              phones the vendor on the number in the vendor master, records who verified it and when, and
-             only then may the vendor's account be changed.
+             only then may the vendor's account be changed. The bank pays only accounts on its own
+             beneficiary list, kept with treasury; the account in the ERP is a copy it checks, not a source.
           4. Separation of duties. The clerk records and matches. Treasury pays. Only the controller can
              instruct treasury, and every payment needs the controller's approval of that exact payment.
           5. One payment per approval. Never batch two payments into one command.

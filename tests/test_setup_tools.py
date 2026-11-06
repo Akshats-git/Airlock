@@ -214,7 +214,8 @@ def test_doctor_checks_the_agents_files(tmp_path):
     assert dr.files(tmp_path, N)[0].status == dr.FAIL
     install(tmp_path)
     checks = dr.files(tmp_path, N)
-    assert _statuses(checks) == [dr.OK, dr.OK] and "1,000,000.00" in checks[1].label
+    assert _statuses(checks) == [dr.OK, dr.OK, dr.OK] and "1,000,000.00" in checks[1].label
+    assert "4 verified accounts" in checks[2].label
 
 
 def test_doctor_report_fails_only_on_failures():

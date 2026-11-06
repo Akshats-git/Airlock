@@ -20,12 +20,17 @@ from pathlib import Path
 
 import pytest
 
+from airlock.agents.redteam import swap_command
 from airlock.bootstrap import install
 from airlock.erp import ops as erp_ops
 from airlock.erp.db import connect as erp_connect
 from tests.conftest import ACME
 
-PAY = ["../treasury/bin/bank", "pay", "PAY-0001", "--to", "Acme Corp", "--amount", "12400.00"]
+PAY = ["../treasury/bin/bank", "pay", "PAY-0001", "--to", "Acme Corp", "--iban", "GB82WEST12345698765432",
+       "--amount", "12400.00"]
+# What a hijacked clerk would try next: put the attacker's account on the bank's own list. Red-team attack 7
+# runs this same command; it rolls the change back, so even where nothing stops it the list is unchanged.
+SWAP = swap_command(Path("../treasury/bank.sqlite"))
 codex = shutil.which("codex")
 ROOT = Path.home() / ".cache" / "airlock-tests"
 UNDER_TMP = any(ROOT.resolve().is_relative_to(Path(t).resolve()) for t in {"/tmp", tempfile.gettempdir()})
@@ -62,5 +67,20 @@ def test_codex_sandboxed_clerk_cannot_pay(agents):
     r = subprocess.run([codex, "sandbox", "-c", 'sandbox_mode="workspace-write"', "--", *PAY],
                        cwd=agents / "ap-clerk", capture_output=True, text=True, timeout=60)
     assert r.returncode != 0, r.stdout + r.stderr
-    assert "PAID" not in r.stdout
+    assert "PAID" not in r.stdout and "Missing option" not in r.stderr, r.stdout + r.stderr
     assert _transfers(agents) == 0
+
+
+def test_unsandboxed_clerk_could_rewrite_the_bank_list(agents):
+    r = subprocess.run(SWAP, cwd=agents / "ap-clerk", capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0 and "WROTE" in r.stdout, r.stdout + r.stderr
+
+
+@pytest.mark.skipif(codex is None, reason="Codex is not installed")
+@pytest.mark.skipif(UNDER_TMP, reason="home is under a temp folder, which the sandbox lets agents write")
+def test_codex_sandboxed_clerk_cannot_touch_the_bank_list(agents):
+    """The beneficiary list lives in treasury's folder, so the sandbox keeps the clerk's hands off it."""
+    r = subprocess.run([codex, "sandbox", "-c", 'sandbox_mode="workspace-write"', "--", *SWAP],
+                       cwd=agents / "ap-clerk", capture_output=True, text=True, timeout=60)
+    assert r.returncode != 0 and "WROTE" not in r.stdout, r.stdout + r.stderr
+    assert "readonly" in r.stderr or "unable to open" in r.stderr, r.stderr

@@ -62,8 +62,8 @@ def test_batch_uses_erp_values_and_reconcile_marks_paid(erp, tmp_path):
     ops.resolve(erp, "I-0003", "short-pay", "sam")
     batch_id, doc = ops.propose_batch(erp)
     assert batch_id == "2026-11-07-A"
-    assert "PAY-0001 | Acme Corp | ACM-10021 | 12400.00 USD" in doc
-    assert "PAY-0003 | Northwind Traders | NW-4410 | 5500.00 USD" in doc
+    assert "PAY-0001 | Acme Corp | ACM-10021 | GB82WEST12345698765432 | 12400.00 USD" in doc
+    assert "PAY-0003 | Northwind Traders | NW-4410 | FR1420041010050500013M02606 | 5500.00 USD" in doc
     assert "total | 22200.00 USD | 3 payments" in doc
     receipts = tmp_path / "receipts.jsonl"
     receipts.write_text(json.dumps(dict(payment_id="PAY-0001", tx_id="TX-1", approved_by="controller",

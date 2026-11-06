@@ -51,7 +51,7 @@ document.getElementById("empty").style.display=d.transfers.length?"none":"block"
 const body=document.getElementById("rows");body.textContent="";
 for(const t of d.transfers){const tr=document.createElement("tr");
 if(!first&&!seen.has(t.tx_id))tr.className="new";seen.add(t.tx_id);
-const cells=[[t.tx_id],[t.payee,t.payment_id],[t.approved_by],[t.currency+" "+fmt(t.amount_cents)]];
+const cells=[[t.tx_id],[t.payee,t.payment_id+" \u00b7 "+t.iban],[t.approved_by],[t.currency+" "+fmt(t.amount_cents)]];
 cells.forEach((c,i)=>{const td=document.createElement("td");
 if(i==2)td.className="hide-s by";if(i==3)td.className="n";
 td.append(c[0]);if(c[1]){td.append(document.createElement("br"));const s=document.createElement("span");s.className="out";s.textContent=c[1];td.append(s);}

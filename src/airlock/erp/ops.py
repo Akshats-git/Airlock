@@ -146,13 +146,13 @@ def propose_batch(conn: sqlite3.Connection, actor: str = "ap-clerk") -> tuple[st
         conn.execute("INSERT INTO payments (id, batch_id, invoice_id, vendor_id, payee_iban, amount_cents, currency)"
                      " VALUES (?,?,?,?,?,?,?)", (pid, batch_id, r["id"], r["vendor_id"], r["iban"], r["pay_cents"], r["currency"]))
         conn.execute("UPDATE invoices SET status='batched' WHERE id=?", (r["id"],))
-        lines.append(f"{pid} | {r['vname']} | {r['vendor_invoice_no']} | {format_money(r['pay_cents'])} {r['currency']}")
+        lines.append(f"{pid} | {r['vname']} | {r['vendor_invoice_no']} | {r['iban']} | {format_money(r['pay_cents'])} {r['currency']}")
         total += r["pay_cents"]
     conn.execute("INSERT INTO payment_batches VALUES (?,?,?, 'proposed')", (batch_id, now(), total))
     audit(conn, actor, "batch", batch_id, f"{len(rows)} payments total={format_money(total)}")
     conn.commit()
-    doc = (f"# Payment batch {batch_id}\n\nPay each line with `bank pay <payment> --to <vendor> --amount <amount>`,"
-           f" one command per payment.\n\n" + "\n".join(lines) + f"\n\ntotal | {format_money(total)} USD | {len(rows)} payments\n")
+    doc = (f"# Payment batch {batch_id}\n\nPay each line with `bank pay <payment> --to <vendor> --iban <account>"
+           f" --amount <amount>`, one command per payment.\n\n" + "\n".join(lines) + f"\n\ntotal | {format_money(total)} USD | {len(rows)} payments\n")
     return batch_id, doc
 
 

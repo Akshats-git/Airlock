@@ -133,9 +133,12 @@ def files(agents: Path, names: Names) -> list[Check]:
         with sqlite3.connect(f"file:{treasury / 'bank.sqlite'}?mode=ro", uri=True) as conn:
             cents = conn.execute("SELECT v FROM meta WHERE k='balance'").fetchone()[0]
             paid = conn.execute("SELECT COUNT(*) FROM ledger").fetchone()[0]
+            payees = conn.execute("SELECT COUNT(*) FROM beneficiaries").fetchone()[0]
         status = OK if paid == 0 else WARN
         out.append(Check(status, f"bank balance {cents // 100:,}.{cents % 100:02d}, {paid} transfers",
                          "" if paid == 0 else "scripts/take.sh reset for a clean take"))
+        out.append(Check(OK if payees else FAIL, f"bank beneficiary list: {payees} verified accounts, in treasury's folder",
+                         "" if payees else "scripts/take.sh reset"))
     except sqlite3.Error as e:
         out.append(Check(FAIL, f"bank unreadable: {e}", "scripts/take.sh reset"))
     return out

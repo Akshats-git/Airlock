@@ -18,13 +18,14 @@ app = typer.Typer(add_completion=False, no_args_is_help=True, help="Airlock mock
 @app.command("pay")
 def pay_cmd(payment_id: str,
             to: Annotated[str, typer.Option("--to", help="Payee name exactly as in the batch document.")],
+            iban: Annotated[str, typer.Option("--iban", help="The account, as in the batch document. Shown on the approval card.")],
             amount: Annotated[str, typer.Option("--amount", help="Amount as in the batch document, e.g. 12400.00")]):
-    """Pay one approved item, once, to the ERP's verified account."""
+    """Pay one approved item, once, and only to an account on the bank's own beneficiary list."""
     receipts = os.environ.get("AIRLOCK_RECEIPTS")
     approver = os.environ.get("AIRLOCK_APPROVER", "switch-approval")
     try:
         erp = erp_connect(erp_path(), readonly=True)
-        typer.echo(ops.pay(ops.connect(), erp, payment_id, to, amount, approver, Path(receipts) if receipts else None))
+        typer.echo(ops.pay(ops.connect(), erp, payment_id, to, iban, amount, approver, Path(receipts) if receipts else None))
     except ops.BankError as e:
         typer.echo(f"REFUSED {e}")
         raise typer.Exit(1)
