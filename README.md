@@ -203,45 +203,35 @@ set `AIRLOCK_API` or `AIRLOCK_AGENTS_DIR` to override.
 
 1. **Start Switch.** Install and start Switch Console, start its local server, and link your chat account on
    the Home page.
-2. **Install.** `git clone` this repo, then `uv sync`.
-3. **Get a registration key** for the protocol agents: `uv run airlock reg-key`. It signs in to your server's
-   Gateway API as the admin and reuses or creates a key labelled `airlock`, saved to `runtime/registration-key`
-   (only you can read it; it is never printed). A Console-managed local server has no Gateway page and doesn't
-   show its admin sign-in; it hands it to the switch-core process. In your own terminal:
-   ```bash
-   pid=$(pgrep -f switch_core.main | head -1)
-   export SWITCH_ADMIN_EMAIL="$(tr '\0' '\n' </proc/$pid/environ | sed -n 's/^GATEWAY_ADMIN_EMAIL=//p')"
-   export SWITCH_ADMIN_PASSWORD="$(tr '\0' '\n' </proc/$pid/environ | sed -n 's/^GATEWAY_ADMIN_PASSWORD=//p')"
-   uv run airlock reg-key
-   ```
-   A Docker or standalone deployment can instead create one on the Gateway's API Keys page and export it as
-   `SWITCH_REG_KEY`.
-4. **Register the four protocol agents:** `uv run airlock register`.
-5. **Create the desk.** In Console, Templates > Import template, paste
-   [template/airlock.template.yaml](template/airlock.template.yaml), and Create all. Keep "Clerk runs on" as
-   Codex for the sandboxed clerk. Optionally enter the AP specialist's chat username (see
-   [the second person](docs/DETAILS.md#a-second-person-at-the-desk)).
-6. **Put the data where the agents live and start the listeners:** `scripts/take.sh reset`. It installs the
-   ERP, the bank and the `./bin/ap` and `./bin/bank` tools into the agents' folders, then starts customs, the
-   reader, the red team, the always-on mailroom (watching `runtime/inbox`), the postman and the ledger page.
-   To see the letters to vendors in an inbox, run `scripts/take.sh mailpit` first (a local Mailpit in Docker,
-   http://localhost:8025); otherwise they land in `runtime/outbox/` as `.eml`. For the real reader model:
-   `READER=openai AIRLOCK_READER_MODEL=gpt-4o-mini OPENAI_API_KEY=... scripts/take.sh reset`; the default
-   replays recorded records and costs nothing.
-7. **Check everything:** `scripts/take.sh doctor`. It asks the live server who is in which room, whether
-   treasury obeys its owner only, and which provider runs the clerk, and checks the files and listeners.
-8. **Deliver the mail:** `scripts/take.sh deliver` drops the four demo emails into `runtime/inbox/new`, and the
+2. **Run `scripts/setup.sh`** in your own terminal and follow its prompts. It runs `uv sync`, gets a Gateway
+   registration key for the protocol agents, registers mailroom, reader, customs and red-team, prints the few
+   Console clicks that create the desk from [template/airlock.template.yaml](template/airlock.template.yaml)
+   (Templates > Import template, Use template, Create all, keep "Clerk runs on" as Codex, treasury Auto mode off
+   and "Only me"), waits for you, then runs `scripts/take.sh reset` and `scripts/take.sh doctor`.
+   Run it yourself, not through an agent: a Console-managed local server has no Gateway page and hands its admin
+   sign-in only to the switch-core process, and the script reads it from there for you. A Docker or standalone
+   server can instead create the key on the Gateway's API Keys page and export it as `SWITCH_REG_KEY`.
+   What `reset` does: installs the ERP, the bank and the `./bin/ap` and `./bin/bank` tools into the agents'
+   folders, then starts customs, the reader, the red team, the always-on mailroom (watching `runtime/inbox`), the
+   postman and the ledger page. For letters in an inbox page, run `scripts/take.sh mailpit` first (a local
+   Mailpit in Docker, http://localhost:8025); otherwise they land in `runtime/outbox/` as `.eml`. For the real
+   reader model: `READER=openai AIRLOCK_READER_MODEL=gpt-4o-mini OPENAI_API_KEY=... scripts/take.sh reset`; the
+   default replays recorded records and costs nothing. An optional second person: see
+   [the second person](docs/DETAILS.md#a-second-person-at-the-desk).
+   `scripts/take.sh doctor` asks the live server who is in which room, whether treasury obeys its owner only,
+   and which provider runs the clerk, and checks the files and listeners.
+3. **Deliver the mail:** `scripts/take.sh deliver` drops the four demo emails into `runtime/inbox/new`, and the
    mailroom posts them (`MAIL=fixtures/morning scripts/take.sh deliver` for the 30-email morning). Open the live
    ledger at http://localhost:8099.
-9. **Work the desk in Mattermost** (`ap-desk`):
+4. **Work the desk in Mattermost** (`ap-desk`):
    - Answer the exception: `@ap-clerk short-pay I-0003`.
    - When the clerk says the batch is ready: `@treasury run batch <batch id>`, then choose **Allow once** on
      each approval card in the thread under your message: one for the routine run, one per large payment.
    - Then `@ap-clerk treasury has paid`, and the clerk reconciles the ledger.
-10. **Check what happened:** `scripts/take.sh verify` (see [What leaves the desk](#what-leaves-the-desk)).
+5. **Check what happened:** `scripts/take.sh verify` (see [What leaves the desk](#what-leaves-the-desk)).
 
-For a second take, use brand-new rooms: `scripts/take.sh fresh` lists the steps, starting with
-`uv run airlock archive-rooms`. A reused room still holds the earlier batch, and the clerk rightly asks whether
+For a second take, use brand-new rooms: `scripts/take.sh fresh` archives the old rooms in Switch and their
+Mattermost channels (it asks first), then lists the few Console steps. A reused room still holds the earlier batch, and the clerk rightly asks whether
 it is a re-run.
 
 ## See the walls hold

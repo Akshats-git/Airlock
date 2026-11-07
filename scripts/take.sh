@@ -8,7 +8,8 @@
 #   scripts/take.sh mailpit  start a local mail server; letters to vendors then show at http://localhost:8025
 #   scripts/take.sh status   what is running, and the bank balance
 #   scripts/take.sh stop     stop everything this script started
-#   scripts/take.sh fresh    the Console steps for a take in brand-new rooms
+#   scripts/take.sh fresh    archive the old rooms (Switch and Mattermost), then the Console steps for new ones
+# First time on a machine: scripts/setup.sh
 # READER=openai scripts/take.sh reset   uses the real model (needs OPENAI_API_KEY); default is the free recorded records.
 # Paths are found automatically (`uv run airlock paths`); set AIRLOCK_API or AIRLOCK_AGENTS_DIR to override.
 set -euo pipefail
@@ -69,22 +70,23 @@ mailpit() {
 }
 
 fresh() {
+  stop
+  echo "Archiving the old rooms, in Switch and in Mattermost (it asks first):"
+  uv run airlock archive-rooms || echo "(nothing archived; continue if there were no old rooms)"
   cat <<'EOF'
-A take in brand-new rooms (old messages and documents in a reused room confuse the clerk):
-  1. scripts/take.sh stop
-  2. uv run airlock archive-rooms   (archives the old rooms in Switch; do this BEFORE step 4)
-     Then archive the same two channels in Mattermost so they leave the sidebar.
-  3. In Console, Agents: open ap-clerk, Danger zone > Delete agent..., then the same for treasury
+Now, in Console (old messages and documents in a reused room confuse the clerk):
+  1. Agents: open ap-clerk, Danger zone > Delete agent..., then the same for treasury
      (the template refuses names that exist). The four protocol agents stay registered; don't delete them.
-  4. Console > Templates > Import template: choose template/airlock.template.yaml (Save changes if the
+  2. Templates > Import template: choose template/airlock.template.yaml (Save changes if the
      template already exists), Use template, then Create all. Leave "Clerk runs on" as Codex.
      If a second person works the desk, put their chat username in "AP specialist" (once per account,
      also run: uv run airlock specialist <username>).
-  5. In treasury's settings, check Auto mode is off and "Who can talk to your agent" is Only me.
-  6. scripts/take.sh reset      (installs the ERP, bank and tools into the new agents' folders)
-  7. scripts/take.sh doctor     (every line should be ✓ before you record;
-     AIRLOCK_SPECIALIST=<username> scripts/take.sh doctor also checks the specialist's seat)
-  8. scripts/take.sh send
+  3. In treasury's settings, check Auto mode is off and "Who can talk to your agent" is Only me.
+Then:
+  scripts/take.sh reset      (installs the ERP, bank and tools into the new agents' folders)
+  scripts/take.sh doctor     (every line should be ok before you record;
+                              AIRLOCK_SPECIALIST=<username> scripts/take.sh doctor also checks the specialist's seat)
+  scripts/take.sh send       (or deliver)
 EOF
 }
 

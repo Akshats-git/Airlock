@@ -307,3 +307,33 @@ def test_treasury_must_still_be_owner_only():
     assert dr.treasury_owner_only([{"name": names.treasury, "addressing_policy": only}], names).status == dr.OK
     assert dr.treasury_owner_only([{"name": names.treasury, "addressing_policy": open_}], names).status == dr.FAIL
     assert dr.treasury_owner_only([], names).status == dr.FAIL
+
+
+def test_channels_are_archived_with_mmctl_in_the_mattermost_container():
+    import subprocess
+    from airlock import rooms as rm
+
+    calls = []
+
+    def run(cmd, **kw):
+        calls.append(cmd)
+        if cmd[:2] == ["docker", "ps"]:
+            return subprocess.CompletedProcess(cmd, 0, "db\tpostgres:16\nmm-1\tmattermost/mattermost-team-edition:11.9.0\n", "")
+        return subprocess.CompletedProcess(cmd, 1 if cmd[-1].endswith("bad") else 0, "", "no such channel")
+
+    assert rm.mattermost_container(run) == "mm-1"
+    out = rm.archive_channels("mm-1", ["abc", "bad"], run=run)
+    assert calls[-2] == ["docker", "exec", "mm-1", "mmctl", "--local", "channel", "archive", "switch:abc"]
+    assert [o.error for o in out] == ["", "no such channel"]
+    assert rm.mattermost_container(lambda *a, **k: subprocess.CompletedProcess(a, 0, "x\talpine\n", "")) is None
+
+
+def test_channel_ids_come_from_switch_and_a_failure_is_skipped():
+    from airlock import rooms as rm
+
+    def call(op, room_id):
+        if room_id == "q":
+            return {"external_channel_id": "chq"}
+        raise RuntimeError("nope")
+
+    assert rm.channel_ids(call, ROOMS[:2]) == {"q": "chq"}

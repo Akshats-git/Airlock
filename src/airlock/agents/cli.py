@@ -219,9 +219,11 @@ def verify(outbox: Annotated[Path, typer.Option(help="The postman's outbox.")] =
 
 
 @app.command("archive-rooms")
-def archive_rooms(yes: Annotated[bool, typer.Option("--yes", "-y", help="Don't ask first.")] = False):
-    """Archive the live ap-quarantine and ap-desk rooms (reversible). Run it BEFORE importing the template again,
-    or it will archive the new rooms too."""
+def archive_rooms(yes: Annotated[bool, typer.Option("--yes", "-y", help="Don't ask first.")] = False,
+                  mattermost: Annotated[bool, typer.Option(
+                      help="Also archive the two channels in the bundled Mattermost (needs Docker).")] = True):
+    """Archive the live ap-quarantine and ap-desk rooms (reversible), and their Mattermost channels. Run it BEFORE
+    importing the template again, or it will archive the new rooms too."""
     from airlock import rooms as rm
 
     names = Names.from_env()
@@ -241,13 +243,23 @@ def archive_rooms(yes: Annotated[bool, typer.Option("--yes", "-y", help="Don't a
     typer.echo("Will archive in Switch (reversible, messages kept):")
     for r in rooms:
         typer.echo(f"  {r['name']}  {r['room_id']}")
-    typer.echo("Archive the same channels in Mattermost yourself so they leave the sidebar.")
     if not yes and not typer.confirm("Archive these rooms?"):
         raise typer.Exit(1)
+    channels = list(rm.channel_ids(agent.call, rooms).values()) if mattermost else []
     failed = 0
     for o in rm.archive(agent.call, rooms):
         failed += bool(o.error)
         typer.echo(f"{'FAILED ' if o.error else 'archived'} {o.name}" + (f": {o.error}" if o.error else ""))
+    if channels:
+        box = rm.mattermost_container()
+        if box is None:
+            typer.echo("Mattermost container not found: archive the two channels in Mattermost yourself.")
+        else:
+            for o in rm.archive_channels(box, channels):
+                typer.echo(f"{'FAILED ' if o.error else 'archived'} channel {o.room_id}" +
+                           (f": {o.error}" if o.error else ""))
+    elif mattermost:
+        typer.echo("No channel ids from Switch: archive the two channels in Mattermost yourself.")
     raise typer.Exit(1 if failed else 0)
 
 
