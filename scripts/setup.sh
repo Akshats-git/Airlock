@@ -33,7 +33,7 @@ say "4/5 Create the desk in Switch Console (the one step that needs clicks)"
 cat <<'EOT'
   1. Console > Templates > Import template, and choose template/airlock.template.yaml in this folder.
      (An older Airlock template there? Open it, paste the file again, Save changes.)
-  2. Use template, then Create all. Leave "Clerk runs on" as Codex.
+  2. Use template, then Create all.
      If a second person works the desk, enter their chat username as "AP specialist", and also run:
        uv run airlock specialist <username>
   3. Open treasury's settings: Auto mode off, "Who can talk to your agent" = Only me.

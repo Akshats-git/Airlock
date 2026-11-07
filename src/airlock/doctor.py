@@ -164,8 +164,9 @@ def addressing(agents: list[dict], names: Names) -> list[Check]:
         if "codex" in kind.casefold():
             out.append(Check(OK, "the clerk runs on Codex, in a sandbox that can't write treasury's files"))
         else:
-            out.append(Check(WARN, f"the clerk runs on {kind or 'an unknown provider'}, with no sandbox",
-                             "fine for a demo; for real money run it on Codex (see README, Limits)"))
+            out.append(Check(FAIL, f"the clerk runs on {kind or 'an unknown provider'}, which has no sandbox: it could "
+                                   f"run treasury's bank tool without an approval card",
+                             "re-import template/airlock.template.yaml: it runs the clerk on Codex only"))
     return out
 
 

@@ -213,7 +213,7 @@ def test_doctor_says_whether_the_clerk_is_sandboxed():
     codex = dr.addressing([t, {"name": "ap-clerk", "connector_type": "Codex"}], N)
     claude = dr.addressing([t, {"name": "ap-clerk", "connector_type": "Claude Code"}], N)
     assert _statuses(codex) == [dr.OK, dr.OK]
-    assert _statuses(claude) == [dr.OK, dr.WARN]
+    assert _statuses(claude) == [dr.OK, dr.FAIL]
 
 
 def test_doctor_checks_the_agents_files(tmp_path):

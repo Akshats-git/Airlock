@@ -78,7 +78,7 @@ Now, in Console (old messages and documents in a reused room confuse the clerk):
   1. Agents: open ap-clerk, Danger zone > Delete agent..., then the same for treasury
      (the template refuses names that exist). The four protocol agents stay registered; don't delete them.
   2. Templates > Import template: choose template/airlock.template.yaml (Save changes if the
-     template already exists), Use template, then Create all. Leave "Clerk runs on" as Codex.
+     template already exists), Use template, then Create all.
      If a second person works the desk, put their chat username in "AP specialist" (once per account,
      also run: uv run airlock specialist <username>).
   3. In treasury's settings, check Auto mode is off and "Who can talk to your agent" is Only me.

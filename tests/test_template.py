@@ -57,5 +57,7 @@ def test_the_policy_is_a_template_document_so_no_agent_can_edit_it(compiled):
     assert compiled["rooms"][Names().desk]["docs"] == ["ap-policy"]
 
 
-def test_the_clerk_model_follows_its_provider(compiled):
-    assert compiled["clerk_models"] == {"codex": "gpt-6-luna", "claude": "sonnet"}
+def test_the_clerk_can_only_run_in_codexs_sandbox(compiled):
+    # Claude Code has no sandbox: a clerk on it could run treasury's bank tool without a card.
+    assert compiled["clerk"] == {"provider": "codex", "model": "gpt-6-luna"}
+    assert "clerk_provider" not in TEMPLATE.read_text()

@@ -150,7 +150,7 @@ UNTRUSTED  ap-quarantine (private) ───────────────
 ═════╪═══ the airlock: only a validated record crosses ════════════════════════
      ▼
 TRUSTED    ap-desk (private) ─────────────────────────────────────────────────
-  ap-clerk   three-way match against the ERP; exceptions go to people   Codex (or Claude)
+  ap-clerk   three-way match against the ERP; exceptions go to people   Codex
   people     AP specialist works the desk; controller owns the agents
   red-team   scripted attacker: orders treasury, edits documents        plain code
      │  controller: "@treasury run batch 2026-11-07-A"
@@ -206,7 +206,7 @@ set `AIRLOCK_API` or `AIRLOCK_AGENTS_DIR` to override.
 2. **Run `scripts/setup.sh`** in your own terminal and follow its prompts. It runs `uv sync`, gets a Gateway
    registration key for the protocol agents, registers mailroom, reader, customs and red-team, prints the few
    Console clicks that create the desk from [template/airlock.template.yaml](template/airlock.template.yaml)
-   (Templates > Import template, Use template, Create all, keep "Clerk runs on" as Codex, treasury Auto mode off
+   (Templates > Import template, Use template, Create all, treasury Auto mode off
    and "Only me"), waits for you, then runs `scripts/take.sh reset` and `scripts/take.sh doctor`.
    Run it yourself, not through an agent: a Console-managed local server has no Gateway page and hands its admin
    sign-in only to the switch-core process, and the script reads it from there for you. A Docker or standalone
@@ -254,15 +254,13 @@ More, with a second person at the desk and the bank-detail change: [docs/DETAILS
 
 ## Limits, stated plainly
 
-- **The clerk and treasury share a machine and an OS user.** With the clerk on Codex (the template's default),
-  Switch runs it in Codex's `workspace-write` sandbox, and the isolation test shows that from there the clerk
-  can neither run a payment nor change the bank's beneficiary list. It can still rewrite the ERP it owns and
-  take instructions from anyone in the desk, so a talked-round clerk could at worst ask for a real vendor to be
-  paid the wrong amount, to that vendor's verified account, on a card the controller reads first. In Codex's auto mode a request to leave the sandbox goes to Codex's automatic reviewer,
-  not to a person. With the clerk on Claude Code there is no sandbox: the clerk could run treasury's bank tool
-  itself and pay without an approval card, and only the model's own judgment stops it. The full run has been
-  done live with the clerk on Codex (`gpt-6-luna`) and earlier ones with Claude Code. For real money, run treasury on its own machine (Switch's `machine`
-  setting), so its tool isn't reachable from the clerk at all.
+- **The clerk and treasury share a machine and an OS user, so the wall between them is Codex's sandbox.** The
+  template runs the clerk only on Codex (Claude Code has no sandbox and could run the bank tool without a
+  card), and `doctor` fails if it is not. In that `workspace-write` sandbox the clerk can neither run a payment
+  nor change the bank's beneficiary list (the isolation test and red-team attack 7 check this). It can still
+  rewrite the ERP it owns and take instructions from anyone in the desk, so a talked-round clerk could at worst
+  ask for a real vendor to be paid the wrong amount, to that vendor's verified account, on a card the controller
+  reads first. For real money, put treasury on its own machine (Switch's `machine` setting).
 - The ERP and the bank are test doubles behind command-line tools, built to be swapped for real APIs. The bank
   tool does write the standard ISO 20022 file a bank portal takes, so the hand-off to a real bank is an upload.
   The letters go to a local mail server, not to real vendors. The Switch setup, the agents, the rooms and the
@@ -290,5 +288,5 @@ everything that has been checked and how, other chat apps, troubleshooting and t
 ## How this was built
 
 Built during the Flip the Switch hackathon (Track 01) with Claude Code, which wrote most of the code under the
-author's direction. The reader runs on an OpenAI model, the clerk on Codex or Claude, and treasury on Claude
+author's direction. The reader runs on an OpenAI model, the clerk on Codex, and treasury on Claude
 Code, as above.
