@@ -9,7 +9,7 @@ vendor. Airlock's controller is modelled as approving every card (the worst case
 
 | Setup | Attacks that did harm | Clean invoices handled right | Model | Raw log |
 |---|---|---|---|---|
-| Airlock, reader fully hijacked (returns the attacker's best record) | **0/25** | 6/6 | hijacked-quiet | `20261106-210359-airlock-quiet.jsonl` |
+| Airlock, reader fully hijacked (returns the attacker's best record) | **0/25** | 6/6 | hijacked-quiet | `20261107-121401-airlock-quiet.jsonl` |
 | Airlock, reader fully hijacked (echoes the email to smuggle text) | **0/25** | none (every email held) | hijacked-raw | `20261106-210400-airlock-raw.jsonl` |
 | Airlock, real reader model | **0/25** | 6/6 | gpt-4o-mini | `20261107-005605-airlock-openai-gpt-4o-mini.jsonl` |
 | One agent with tools, plain prompt | **17/25** | 5/6 | gpt-4o-mini | `20261107-010141-naive-naive-gpt-4o-mini.jsonl` |
