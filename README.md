@@ -8,7 +8,7 @@ Airlock is an accounts-payable desk in team chat, built on [Switch](https://gith
 AI agents read vendor email, match invoices and prepare payments. People approve what matters. Switch, not a
 prompt, keeps vendor text away from anything that can move money.
 
-🎬 **Demo video:** _link added at submission_
+🎬 **Demo video:** [watch on YouTube](https://youtu.be/QESjb_HzxDI) (3 min)
 
 | | |
 |---|---|
