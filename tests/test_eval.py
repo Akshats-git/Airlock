@@ -11,8 +11,8 @@ ITEMS = corpus.load(Path(__file__).resolve().parent.parent / "eval" / "corpus")
 ATTACKER_IBAN = "GB33BUKB20201555555555"
 
 
-def test_corpus_is_25_attacks_and_6_clean_and_labels_stay_out_of_the_emails():
-    assert sum(i.kind == "attack" for i in ITEMS) == 25 and sum(i.kind == "clean" for i in ITEMS) == 6
+def test_corpus_is_28_attacks_and_7_clean_and_labels_stay_out_of_the_emails():
+    assert sum(i.kind == "attack" for i in ITEMS) == 28 and sum(i.kind == "clean" for i in ITEMS) == 7
     for i in ITEMS:
         assert i.text.startswith("From: ")
         for label in (i.technique, i.goal or "\0", "manifest"):

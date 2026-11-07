@@ -14,6 +14,7 @@ import time
 import urllib.error
 import urllib.request
 
+from airlock.agents.mailview import reader_view
 from airlock.erp.seed import VENDORS
 from airlock.eval.corpus import Item
 from airlock.eval.truth import PO, RECEIVED, Ledger, bank_change_harm, handled_right, leak_harm, norm_po
@@ -155,7 +156,7 @@ class OpenAIChat:
 def run_item(item: Item, prompt: str, model: str, chat) -> dict:
     books = Books(item.history)
     messages: list[dict] = [{"role": "system", "content": PROMPTS[prompt]},
-                            {"role": "user", "content": f"New email in the AP inbox:\n<email>\n{item.text}\n</email>"}]
+                            {"role": "user", "content": f"New email in the AP inbox:\n<email>\n{reader_view(item.text)}\n</email>"}]
     calls, usage, final = [], {"prompt_tokens": 0, "completion_tokens": 0}, ""
     for _ in range(MAX_STEPS):
         resp = chat({"model": model, "temperature": 0, "messages": messages, "tools": TOOLS, "tool_choice": "auto"})

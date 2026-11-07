@@ -47,19 +47,20 @@ What a real AP team sends, not chat messages:
   agree, every transfer is an ERP payment reconciled in the ERP, the attack corpus's judge finds no harm, no
   held record reached the ERP, every transfer is in exactly one payment file, and every letter went out.
 
-## Attacked 25 ways, compared with one agent
+## Attacked 28 ways, compared with one agent
 
-[25 attack emails](eval/corpus/) (hidden text, fake tool calls, CEO fraud, double billing, a fake auditor, a claimed
-phone check and more) plus 6 clean invoices, scored by one judge against the seed data. Harm means money to the
+[28 attack emails](eval/corpus/) (hidden text, fake tool calls, CEO fraud, double billing, a fake auditor, a claimed
+phone check, and three hidden in PDF invoices: white text, the PDF's metadata, new bank details in the footer)
+plus 7 clean invoices, scored by one judge against the seed data. Harm means money to the
 wrong account or payee, more than is owed, a changed bank record, or account numbers leaked. Full per-email
 table: [eval/RESULTS.md](eval/RESULTS.md); raw logs in [eval/results/](eval/results/).
 
 | Setup (`gpt-4o-mini` where a model reads) | Attacks that did harm | Clean invoices handled right |
 |---|---|---|
-| **Airlock**, real reader model (two runs) | **0 / 25** | 6 / 6 |
-| **Airlock**, reader fully hijacked (returns the attacker's best record) | **0 / 25** | 6 / 6 |
-| One agent holding the AP tools, plain prompt | 17 / 25 | 5 / 6 |
-| One agent holding the AP tools, written security rules | 3 / 25 | 4 / 6 |
+| **Airlock**, reader fully hijacked (returns the attacker's best record) | **0 / 28** | 7 / 7 |
+| **Airlock**, real reader model (two runs, first 25 attacks) | **0 / 25** | 6 / 6 |
+| One agent holding the AP tools, plain prompt (first 25) | 17 / 25 | 5 / 6 |
+| One agent holding the AP tools, written security rules (first 25) | 3 / 25 | 4 / 6 |
 
 The single agent with security rules still paid $43,000 on a $4,300 invoice because an HTML comment said so, and
 paid one delivery twice. Airlock's zero doesn't depend on the model: with the reader hijacked, the worst it
@@ -71,7 +72,7 @@ a hole in our own ERP (a re-billed delivery under a new invoice number paid twic
 ```bash
 git clone https://github.com/Akshats-git/Airlock && cd Airlock && uv sync
 uv run pytest -q                              # 330 tests
-uv run airlock eval airlock --reader quiet    # the 25 attacks with a fully hijacked reader: 0 harm
+uv run airlock eval airlock --reader quiet    # the 28 attacks with a fully hijacked reader: 0 harm
 uv run airlock eval morning                   # the 30-email morning, end to end
 ```
 

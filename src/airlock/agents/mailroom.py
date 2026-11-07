@@ -2,7 +2,8 @@
 
 For every email it posts two messages, each starting with a line the mailroom wrote itself:
 an ENVELOPE for customs (the sender domain from the From header, validated by the same rule
-customs uses) and a MAIL for the reader (the raw email below a header and a divider).
+customs uses) and a MAIL for the reader (the email below a header and a divider; PDF attachments are turned
+into text by ``mailview``, so the reader, which has no tools, can read them).
 It needs no WebSocket: posting is plain HTTP.
 """
 
@@ -18,6 +19,7 @@ from email import message_from_string
 
 from airlock.agents import wire
 from airlock.agents.common import Names, load_agent, new_run_id, resolve_room
+from airlock.agents.mailview import reader_view
 from airlock.customs.gate import envelope_domain
 from airlock.protocol import SwitchAgent
 
@@ -63,7 +65,7 @@ def plan(mails: list[Mail], names: Names, run: str) -> list[str]:
     out: list[str] = []
     for m in mails:
         out.append(wire.format_envelope(names.customs, run, len(mails), m.mail_id, sender_domain(m.text)))
-        out.append(wire.format_mail(names.reader, run, m.mail_id, m.text))
+        out.append(wire.format_mail(names.reader, run, m.mail_id, reader_view(m.text)))
     return out
 
 

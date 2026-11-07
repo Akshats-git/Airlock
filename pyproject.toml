@@ -5,6 +5,7 @@ description = "An accounts-payable desk in team chat where agents read every inv
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.7",
+    "pypdf>=7.0.0",
     "typer>=0.12",
     "websockets>=14",
 ]

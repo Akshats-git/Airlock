@@ -19,7 +19,7 @@ jobs:
       - name: Attack corpus through Airlock with a fully hijacked reader (no Switch, no keys)
         run: |
           uv run airlock eval airlock --reader quiet | tail -3
-          uv run airlock eval airlock --reader quiet | grep -q "attacks that did harm: 0/25"
+          uv run airlock eval airlock --reader quiet | grep -q "attacks that did harm: 0/28"
       - name: A normal morning, 30 emails, end to end
         run: |
           uv run airlock eval morning
