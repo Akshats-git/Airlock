@@ -111,6 +111,38 @@ def pay(bank: sqlite3.Connection, erp: sqlite3.Connection, payment_id: str, to: 
     return f"PAID {payment_id} {b['name']} {format_money(cents)} {p['currency']} tx={tx} approved_by={approver}"
 
 
+def pay_run(bank: sqlite3.Connection, erp: sqlite3.Connection, batch_id: str, count: int, total: str, digest: str,
+            approver: str, receipts: Path | None = None) -> str:
+    """Pay a batch's routine payments on one approval.
+
+    The bank decides which payments are routine from its own records (amount, and when the account it holds was
+    last verified), not from the batch document. The card's count, total and fingerprint must match that set
+    exactly, so the controller approved precisely these payments; then each is paid with every check `pay` makes.
+    """
+    from airlock import risk
+    from airlock.erp.db import today
+
+    rows = erp.execute("SELECT * FROM payments WHERE batch_id=? ORDER BY id", (batch_id,)).fetchall()
+    if not rows:
+        raise BankError(f"batch {batch_id} has no payments")
+    run = []
+    for p in rows:
+        b = beneficiary(bank, p["vendor_id"])
+        if b is None or p["payee_iban"] != b["iban"]:
+            continue  # not routine: `pay` will refuse it on its own card
+        if risk.own_card_reason(p["amount_cents"], b["verified_at"], today()) is None:
+            run.append((p, b))
+    lines = [(p["id"], p["vendor_id"], b["iban"], p["amount_cents"]) for p, b in run]
+    want = (len(run), format_money(sum(p["amount_cents"] for p, _ in run)), risk.digest(lines))
+    if (count, total, digest) != want:
+        raise BankError(f"this run doesn't match the bank's own view of batch {batch_id}: {want[0]} routine payments, "
+                        f"total {want[1]}, digest {want[2]}; nothing was paid")
+    out = [pay(bank, erp, p["id"], b["name"], b["iban"], format_money(p["amount_cents"]), approver, receipts)
+           for p, b in run]
+    out.append(f"RUN {batch_id}: {len(run)} routine payments, {total} USD, approved_by={approver}")
+    return "\n".join(out)
+
+
 # -- changing a beneficiary's account: two people, neither of them a model --------------------------------
 #
 # 1. The AP specialist phones the vendor on the number the BANK holds for it (not one from an email) and posts

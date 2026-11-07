@@ -157,3 +157,72 @@ def test_a_newer_callback_replaces_an_older_one(desk):
     ops.record_verification(bank, "V-INITECH", ATTACKER, INITECH_PHONE, "sam")
     ops.record_verification(bank, "V-INITECH", "GB94BARC10201530093459", INITECH_PHONE, "sam")
     assert "is superseded" in change("BC-0001", "--to", "Initech Inc", "--iban", ATTACKER).output
+
+
+# -- one approval for the routine payment run ----------------------------------------------------------------
+import re as _re  # noqa: E402
+
+
+
+def run_args(doc):
+    m = _re.search(r"^RUN \./bin/bank pay-run (\S+) --count (\d+) --total (\S+) --digest (\S+)$", doc, _re.M)
+    return list(m.groups())
+
+
+@pytest.fixture
+def batch(erp, tmp_path, monkeypatch):
+    monkeypatch.setenv("AIRLOCK_BANK", str(tmp_path / "bank.sqlite"))
+    monkeypatch.setenv("AIRLOCK_RECEIPTS", str(tmp_path / "inbox" / "receipts.jsonl"))
+    for rec in (ACME, GLOBEX, NORTHW):
+        erp_ops.match(erp, rec)
+    erp_ops.resolve(erp, "I-0003", "short-pay", "sam")
+    return erp_ops.propose_batch(erp)[1]
+
+
+def pay_run(*args):
+    return CliRunner().invoke(app, ["pay-run", args[0], "--count", args[1], "--total", args[2], "--digest", args[3]])
+
+
+def test_routine_payments_go_on_one_card_and_large_ones_on_their_own(batch):
+    assert run_args(batch)[:3] == ["2026-11-07-A", "2", "9800.00"]
+    own = batch.split("## Own approval each")[1]
+    assert "PAY-0001 | Acme Corp | ACM-10021 | GB82WEST12345698765432 | 12400.00 USD | over 10000.00" in own
+    assert "PAY-0001" not in batch.split("## Own approval each")[0]
+
+
+def test_the_run_pays_exactly_its_payments_and_nothing_else(batch, tmp_path):
+    r = pay_run(*run_args(batch))
+    assert r.exit_code == 0, r.output
+    lines = r.output.strip().splitlines()
+    assert [ln.split()[1] for ln in lines[:-1]] == ["PAY-0002", "PAY-0003"]
+    assert lines[-1] == "RUN 2026-11-07-A: 2 routine payments, 9800.00 USD, approved_by=switch-approval"
+    assert ops.balance(ops.connect()) == ops.OPENING_CENTS - 980000  # Acme's 12,400 waits for its own card
+    assert len((tmp_path / "inbox" / "receipts.jsonl").read_text().splitlines()) == 2
+    assert acme().exit_code == 0  # its own card, its own command
+
+
+@pytest.mark.parametrize("field, value", [(1, "3"), (2, "9800.01"), (3, "0000000000")])
+def test_a_run_that_differs_from_the_card_pays_nothing(batch, field, value):
+    args = run_args(batch)
+    args[field] = value
+    r = pay_run(*args)
+    assert r.exit_code == 1 and "doesn't match the bank's own view" in r.output and "nothing was paid" in r.output
+    assert ops.balance(ops.connect()) == ops.OPENING_CENTS
+
+
+def test_a_rewritten_erp_account_drops_out_of_the_run_and_breaks_it(batch, erp):
+    erp.execute("UPDATE payments SET payee_iban=? WHERE id='PAY-0002'", (ATTACKER,))
+    erp.commit()
+    r = pay_run(*run_args(batch))
+    assert r.exit_code == 1 and "1 routine payments" in r.output
+    assert ops.balance(ops.connect()) == ops.OPENING_CENTS
+
+
+def test_a_recently_changed_account_needs_its_own_card(erp, tmp_path, monkeypatch):
+    monkeypatch.setenv("AIRLOCK_BANK", str(tmp_path / "bank.sqlite"))
+    bank = ops.connect()
+    ops.record_verification(bank, "V-GLOBEX", "GB94BARC10201530093459", "+44-20-5550-102", "sam")
+    ops.apply_change(bank, erp, "BC-0001", "Globex Ltd", "GB94BARC10201530093459", "switch-approval")
+    erp_ops.match(erp, GLOBEX)
+    doc = erp_ops.propose_batch(erp)[1]
+    assert "RUN " not in doc and "| account changed on" in doc

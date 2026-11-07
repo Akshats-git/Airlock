@@ -136,31 +136,53 @@ def resolve(conn: sqlite3.Connection, invoice_id: str, action: str, by: str) -> 
 
 
 def propose_batch(conn: sqlite3.Connection, actor: str = "ap-clerk") -> tuple[str, str]:
-    """Collect matched invoices into one batch. Returns (batch_id, document text)."""
+    """Collect matched invoices into one batch. Returns (batch_id, document text).
+
+    The document splits the batch by ``airlock.risk``: routine payments go in one payment run, approved on one
+    card that shows count, total and fingerprint; every other payment gets its own card with its account.
+    """
+    from airlock import risk
+
     rows = conn.execute(
-        "SELECT i.*, v.name AS vname, v.iban AS iban FROM invoices i JOIN vendors v ON v.id=i.vendor_id"
-        " WHERE i.status='matched' ORDER BY i.id").fetchall()
+        "SELECT i.*, v.name AS vname, v.iban AS iban, v.iban_verified_at AS verified_on FROM invoices i"
+        " JOIN vendors v ON v.id=i.vendor_id WHERE i.status='matched' ORDER BY i.id").fetchall()
     if not rows:
         raise ErpError("nothing matched to batch")
-    day = today().isoformat()
-    used = conn.execute("SELECT COUNT(*) FROM payment_batches WHERE id LIKE ?", (day + "-%",)).fetchone()[0]
-    batch_id = f"{day}-{chr(ord('A') + used)}"
+    day = today()
+    used = conn.execute("SELECT COUNT(*) FROM payment_batches WHERE id LIKE ?", (day.isoformat() + "-%",)).fetchone()[0]
+    batch_id = f"{day.isoformat()}-{chr(ord('A') + used)}"
     n = conn.execute("SELECT COUNT(*) FROM payments").fetchone()[0]
-    lines, total = [], 0
+    routine, own, total = [], [], 0
     for r in rows:
         n += 1
         pid = f"PAY-{n:04d}"
         conn.execute("INSERT INTO payments (id, batch_id, invoice_id, vendor_id, payee_iban, amount_cents, currency)"
                      " VALUES (?,?,?,?,?,?,?)", (pid, batch_id, r["id"], r["vendor_id"], r["iban"], r["pay_cents"], r["currency"]))
         conn.execute("UPDATE invoices SET status='batched' WHERE id=?", (r["id"],))
-        lines.append(f"{pid} | {r['vname']} | {r['vendor_invoice_no']} | {r['iban']} | {format_money(r['pay_cents'])} {r['currency']}")
+        line = f"{pid} | {r['vname']} | {r['vendor_invoice_no']} | {r['iban']} | {format_money(r['pay_cents'])} {r['currency']}"
+        why = risk.own_card_reason(r["pay_cents"], r["verified_on"] or "1970-01-01", day)
+        if why:
+            own.append(f"{line} | {why}")
+        else:
+            routine.append((line, (pid, r["vendor_id"], r["iban"], r["pay_cents"])))
         total += r["pay_cents"]
     conn.execute("INSERT INTO payment_batches VALUES (?,?,?, 'proposed')", (batch_id, now(), total))
-    audit(conn, actor, "batch", batch_id, f"{len(rows)} payments total={format_money(total)}")
+    audit(conn, actor, "batch", batch_id, f"{len(rows)} payments total={format_money(total)} run={len(routine)} own={len(own)}")
     conn.commit()
-    doc = (f"# Payment batch {batch_id}\n\nPay each line with `bank pay <payment> --to <vendor> --iban <account>"
-           f" --amount <amount>`, one command per payment.\n\n" + "\n".join(lines) + f"\n\ntotal | {format_money(total)} USD | {len(rows)} payments\n")
-    return batch_id, doc
+
+    parts = [f"# Payment batch {batch_id}", ""]
+    if routine:
+        run_total = sum(x[1][3] for x in routine)
+        cmd = (f"./bin/bank pay-run {batch_id} --count {len(routine)} --total {format_money(run_total)} "
+               f"--digest {risk.digest([x[1] for x in routine])}")
+        parts += [f"## Payment run: {len(routine)} routine payments, {format_money(run_total)} USD, one approval",
+                  "", "RUN " + cmd, ""] + [x[0] for x in routine] + [""]
+    if own:
+        parts += ["## Own approval each", "",
+                  "Pay each with `./bin/bank pay <payment> --to <vendor> --iban <account> --amount <amount>`, one command each.",
+                  ""] + own + [""]
+    parts.append(f"total | {format_money(total)} USD | {len(rows)} payments")
+    return batch_id, "\n".join(parts) + "\n"
 
 
 def reconcile(conn: sqlite3.Connection, receipts: Path, actor: str = "ap-clerk") -> list[str]:

@@ -1,4 +1,5 @@
-"""`bank`: treasury's only tool. One payment per command, so every approval card shows one payment."""
+"""`bank`: treasury's only tool. Every command asks the controller first: one routine payment run per batch, and
+one command, with its account, for every payment that needs its own look."""
 
 from __future__ import annotations
 
@@ -26,6 +27,23 @@ def pay_cmd(payment_id: str,
     try:
         erp = erp_connect(erp_path(), readonly=True)
         typer.echo(ops.pay(ops.connect(), erp, payment_id, to, iban, amount, approver, Path(receipts) if receipts else None))
+    except ops.BankError as e:
+        typer.echo(f"REFUSED {e}")
+        raise typer.Exit(1)
+
+
+@app.command("pay-run")
+def pay_run_cmd(batch_id: str,
+                count: Annotated[int, typer.Option("--count", help="How many routine payments, as in the batch document.")],
+                total: Annotated[str, typer.Option("--total", help="Their total, as in the batch document.")],
+                digest: Annotated[str, typer.Option("--digest", help="The run's fingerprint, as in the batch document.")]):
+    """Pay a batch's routine payments on one approval, if they are exactly what the card says."""
+    receipts = os.environ.get("AIRLOCK_RECEIPTS")
+    approver = os.environ.get("AIRLOCK_APPROVER", "switch-approval")
+    try:
+        erp = erp_connect(erp_path(), readonly=True)
+        typer.echo(ops.pay_run(ops.connect(), erp, batch_id, count, total, digest, approver,
+                               Path(receipts) if receipts else None))
     except ops.BankError as e:
         typer.echo(f"REFUSED {e}")
         raise typer.Exit(1)

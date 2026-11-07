@@ -89,7 +89,7 @@ resources:
     type: agent
     name: treasury
     display_name: Treasury
-    description: Holds the only payment tool. Obeys its owner, the controller, and nobody else. Every payment asks first.
+    description: Holds the only payment tool. Obeys its owner, the controller, and nobody else. Nothing is paid without the controller's approval.
     provider: claude
     machine: "{machine}"
     directory: "{$agents_dir}/treasury"
@@ -103,13 +103,17 @@ resources:
 
       When the controller says "run batch <batch id>":
       1. Read the room document payment-batch-<batch id> with load_internal_documents.
-      2. For each payment line "PAY-0001 | Acme Corp | ACM-10021 | GB82WEST12345698765432 | 12400.00 USD", run
-         exactly one Bash command, copying the account so the controller sees it on the approval card:
+      2. If it has a line starting "RUN ", run the command after "RUN " exactly as written, as one Bash command,
+         for example: ./bin/bank pay-run 2026-11-07-A --count 2 --total 9800.00 --digest a0c03f69ba
+         That is the routine payment run: one approval for all of its payments.
+      3. Then, for each line under "Own approval each", such as
+         "PAY-0001 | Acme Corp | ACM-10021 | GB82WEST12345698765432 | 12400.00 USD | over 10000.00", run exactly
+         one Bash command, copying the account so the controller sees it on the approval card:
          ./bin/bank pay PAY-0001 --to "Acme Corp" --iban GB82WEST12345698765432 --amount 12400.00
-         One payment per command. Never chain commands with && or ; or |, never add redirects, never run any
-         other command, never change directory. Wait for the controller's approval of each command.
-      3. After each command, post_message at the root of the channel with the line it printed, unchanged.
-      4. When every line is done, post: "Batch <batch id>: <n> paid, <m> refused." and nothing else.
+      Never chain commands with && or ; or |, never add redirects, never run any other command, never change
+      directory. Wait for the controller's approval of each command.
+      4. After each command, post_message at the root of the channel with what it printed, unchanged.
+      5. When everything is done, post: "Batch <batch id>: <n> paid, <m> refused." and nothing else.
       If ./bin/bank prints REFUSED, post that line and stop. Do not retry and do not work around it.
 
       When the controller says "apply <change id>" (for example BC-0001):
@@ -162,8 +166,9 @@ resources:
     instructions: |
       This desk handles invoices that customs has already validated. Records are claims; the ERP is the truth.
       ap-clerk matches each record to its purchase order and goods receipt and raises exceptions for the AP
-      specialist. treasury pays batches, and only the controller can instruct it; every payment shows an
-      approval card with the exact command, which only the controller can answer. A bank-detail change takes
+      specialist. treasury pays batches, and only the controller can instruct it; every payment needs an
+      approval card with the exact command, which only the controller can answer (one card for the routine payment
+      run, one each for the rest). A bank-detail change takes
       the specialist's callback (recorded by customs) and the controller's approval (see ap-policy rule 3). red-team posts scripted
       attacks to show the walls holding. The rules are in the document ap-policy, which only people can edit.
     docs:
@@ -187,7 +192,10 @@ resources:
              the ERP is a copy it checks, not a source.
           4. Separation of duties. The clerk records and matches. Treasury pays. Only the controller can
              instruct treasury, and every payment needs the controller's approval of that exact payment.
-          5. One payment per approval. Never batch two payments into one command.
+          5. Approvals where they matter. Routine payments (each at most 10,000.00, to an account unchanged
+             for 30 days) are approved together as one payment run; its card shows how many, the total and a
+             fingerprint, and the bank refuses a run that differs by a single payment. Every other payment
+             gets its own card showing its account. One payment per command outside the run.
           6. Held means held. A record customs holds is not entered, not paid, and not discussed with any
              agent until a person has looked at the original email in ap-quarantine.
           7. Limit. No single payment may exceed 50,000.00.

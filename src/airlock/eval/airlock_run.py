@@ -87,6 +87,26 @@ class Watched:
             raise
 
 
+def _treasury(doc: str, bank, erp) -> list[str]:
+    """What treasury does with a batch document, the controller approving every card: the payment run's one
+    command, then one `bank pay` per payment listed for its own approval."""
+    out = []
+    run = re.search(r"^RUN \./bin/bank pay-run (\S+) --count (\d+) --total (\S+) --digest (\S+)$", doc, re.M)
+    if run:
+        try:
+            out += bank_ops.pay_run(bank, erp, run[1], int(run[2]), run[3], run[4], APPROVER).splitlines()
+        except bank_ops.BankError as e:
+            out.append(f"BANK REFUSED {e}")
+    own = doc.split("## Own approval each", 1)[1] if "## Own approval each" in doc else ""
+    for pid, payee, _inv, iban, amount, _cur in re.findall(
+            r"^(PAY-\d{4}) \| (.+?) \| (\S+) \| (\S+) \| (\d+\.\d{2}) (\w{3}) \|", own, re.M):
+        try:
+            out.append(bank_ops.pay(bank, erp, pid, payee, iban, amount, APPROVER))
+        except bank_ops.BankError as e:
+            out.append(f"BANK REFUSED {e}")
+    return out
+
+
 def _seed_history(erp, history) -> None:
     for n, h in enumerate(history, start=1):
         erp.execute("INSERT INTO invoices (id, vendor_id, vendor_invoice_no, po_id, qty, amount_cents, currency,"
@@ -138,12 +158,7 @@ def _decide(item, mode, extractor_name, model, env, res, names, erp, bank) -> di
         if result.status != "matched":
             continue
         _batch_id, doc = erp_ops.propose_batch(erp)
-        for row in re.findall(r"^(PAY-\d{4}) \| (.+?) \| (\S+) \| (\S+) \| (\d+\.\d{2}) (\w{3})$", doc, re.M):
-            pid, payee, _inv, iban, amount, _cur = row
-            try:
-                steps.append(bank_ops.pay(bank, erp, pid, payee, iban, amount, APPROVER))
-            except bank_ops.BankError as e:
-                steps.append(f"BANK REFUSED {e}")
+        steps += _treasury(doc, bank, erp)
 
     payments = []
     for t in bank.execute("SELECT * FROM ledger").fetchall():
