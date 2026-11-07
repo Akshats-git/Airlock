@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS ledger (
   amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, approved_by TEXT NOT NULL, executed_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS beneficiaries (
   vendor_id TEXT PRIMARY KEY, name TEXT NOT NULL, iban TEXT NOT NULL,
-  verified_at TEXT NOT NULL, verified_by TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '');
+  verified_at TEXT NOT NULL, verified_by TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS beneficiary_changes (
   id TEXT PRIMARY KEY, vendor_id TEXT NOT NULL, old_iban TEXT NOT NULL, new_iban TEXT NOT NULL,
   called TEXT NOT NULL, verified_by TEXT NOT NULL, verified_at TEXT NOT NULL,
@@ -56,8 +57,9 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     conn.executescript(SCHEMA)
     conn.execute("INSERT OR IGNORE INTO meta VALUES ('balance', ?)", (OPENING_CENTS,))
     if conn.execute("SELECT 1 FROM beneficiaries LIMIT 1").fetchone() is None:
-        conn.executemany("INSERT INTO beneficiaries VALUES (?,?,?,?,?,?)",
-                         [(v[0], v[1], v[5], *OPENING_VERIFIED, v[3]) for v in VENDORS])
+        conn.executemany("INSERT INTO beneficiaries (vendor_id, name, iban, verified_at, verified_by, phone, email)"
+                         " VALUES (?,?,?,?,?,?,?)",
+                         [(v[0], v[1], v[5], *OPENING_VERIFIED, v[3], f"accounts@{v[2]}") for v in VENDORS])
     conn.commit()
     return conn
 

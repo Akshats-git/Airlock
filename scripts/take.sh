@@ -4,6 +4,8 @@
 #   scripts/take.sh send     post the four fixture emails into quarantine (needs a running reset)
 #   scripts/take.sh deliver  drop mail into runtime/inbox/new; the always-on mailroom posts it (MAIL=fixtures/morning)
 #   scripts/take.sh doctor   check the walls and the setup against the live server
+#   scripts/take.sh verify   after a take: ledger, ERP, payment files, holds and letters agree, and no harm
+#   scripts/take.sh mailpit  start a local mail server; letters to vendors then show at http://localhost:8025
 #   scripts/take.sh status   what is running, and the bank balance
 #   scripts/take.sh stop     stop everything this script started
 #   scripts/take.sh fresh    the Console steps for a take in brand-new rooms
@@ -41,15 +43,29 @@ up() {
   start reader   uv run airlock reader --backend "$READER"
   start redteam  uv run airlock redteam
   start ledger   uv run bank serve
-  rm -rf runtime/inbox; mkdir -p runtime/inbox/new runtime/inbox/cur runtime/inbox/tmp
+  rm -rf runtime/inbox runtime/outbox runtime/holds.jsonl; mkdir -p runtime/inbox/new runtime/inbox/cur runtime/inbox/tmp
   start mailroom uv run airlock mailroom watch --inbox runtime/inbox
+  if mailpit_up; then
+    curl -s -X DELETE "http://localhost:$MAILPIT_WEB/api/v1/messages" >/dev/null || true
+    export AIRLOCK_SMTP="localhost:$MAILPIT_SMTP"
+  fi
+  start postman  uv run airlock postman
   sleep 6
-  for n in customs reader redteam mailroom; do
+  for n in customs reader redteam mailroom postman; do
     grep -q " up\| ready\| watching" "$LOGS/$n.log" && echo "$n: up" || { echo "$n: NOT UP"; tail -3 "$LOGS/$n.log"; exit 1; }
   done
   grep -o "using the [a-z]* extractor" "$LOGS/reader.log" | head -1
   echo "ledger: http://localhost:8099"
+  mailpit_up && echo "letters to vendors: http://localhost:$MAILPIT_WEB" || echo "letters to vendors: runtime/outbox (scripts/take.sh mailpit for an inbox page)"
   echo "next: scripts/take.sh doctor, then scripts/take.sh send"
+}
+
+MAILPIT_WEB=8025 MAILPIT_SMTP=1025
+mailpit_up() { docker ps --format '{{.Names}}' 2>/dev/null | grep -qx airlock-mailpit; }
+mailpit() {
+  mailpit_up || docker run -d --rm --name airlock-mailpit -p "127.0.0.1:$MAILPIT_WEB:8025" \
+    -p "127.0.0.1:$MAILPIT_SMTP:1025" ghcr.io/axllent/mailpit:v1.27 >/dev/null
+  echo "mailpit: http://localhost:$MAILPIT_WEB (run scripts/take.sh reset so the postman sends there)"
 }
 
 fresh() {
@@ -78,10 +94,12 @@ case "${1:-}" in
   deliver) for f in "${MAIL:-fixtures/emails}"/*.eml; do cp "$f" "runtime/inbox/tmp/$(basename "$f")"; mv "runtime/inbox/tmp/$(basename "$f")" runtime/inbox/new/; done
            echo "delivered $(ls runtime/inbox/new | wc -l) emails to runtime/inbox/new; the mailroom posts them within seconds" ;;
   doctor) uv run airlock doctor ;;
+  verify) locate; uv run airlock verify ;;
+  mailpit) mailpit ;;
   status) locate
           for f in "$PIDS"/*.pid; do [ -e "$f" ] && { n=$(basename "$f" .pid); kill -0 "$(cat "$f")" 2>/dev/null && echo "$n: running" || echo "$n: dead"; }; done
           "$AIRLOCK_AGENTS_DIR/treasury/bin/bank" balance ;;
-  stop)   stop; echo stopped ;;
+  stop)   stop; docker stop airlock-mailpit >/dev/null 2>&1 || true; echo stopped ;;
   fresh)  fresh ;;
-  *)      sed -n 2,10p "$0"; exit 1 ;;
+  *)      sed -n 2,12p "$0"; exit 1 ;;
 esac

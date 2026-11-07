@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from difflib import SequenceMatcher
 from email.utils import parseaddr
@@ -41,6 +41,7 @@ class Cleared:
 class Held:
     record_id: str
     reasons: tuple[str, ...]
+    vendor_id: str | None = field(default=None, compare=False)  # set only when the envelope is a known vendor's
 
 
 Decision = Cleared | Held
@@ -112,7 +113,7 @@ def check(reader_json: str, envelope: str | None, vendors: list[Vendor], day: da
         reasons.add("low_confidence")
 
     if reasons or vendor is None:
-        return Held(rid, tuple(r for r in _ORDER if r in reasons))
+        return Held(rid, tuple(r for r in _ORDER if r in reasons), vendor.id if vendor else None)
     return Cleared(ClearedRecord(
         record_id=rid, vendor_id=vendor.id, vendor_invoice_no=rec.vendor_invoice_no,
         po_number=rec.po_number, currency=rec.currency, amount_cents=rec.amount_cents,

@@ -14,6 +14,7 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+from airlock import postman
 from airlock.agents import mailroom, reader, wire
 from airlock.agents.common import Names
 from airlock.agents.customs import Intake
@@ -61,6 +62,8 @@ def run(directory: Path = MORNING, extractor=None) -> dict:
                             " WHERE p.id=?", (t["payment_id"],)).fetchone()
             harms += ledger.judge_payment(p["vendor_id"], t["iban"], t["amount_cents"], t["currency"], p["po_id"])
         paid = bank.execute("SELECT COUNT(*), COALESCE(SUM(amount_cents),0) FROM ledger").fetchone()
+        holds = [{"record_id": h.record_id, "vendor_id": h.vendor_id, "reasons": list(h.reasons)} for h in card.holds]
+        letters = Counter(x.kind for x in postman.due(bank, erp, holds))
         out = dict(
             emails=len(mails), cleared=card.cleared, held=len(held),
             held_reasons=[h.split("reasons=")[1] for h in held],
@@ -68,7 +71,8 @@ def run(directory: Path = MORNING, extractor=None) -> dict:
             duplicates=sum(r.status == "duplicate" for r in results),
             payments=paid[0], paid_cents=paid[1], run_payments=int(re.search(r"--count (\d+)", run_line[1])[1]) if run_line else 0,
             own_cards=len(own), approvals=(1 if run_line else 0) + len(own), human_decisions=len(decisions),
-            refused=[ln for ln in paid_lines if "REFUSED" in ln], harms=sorted(set(harms)), card=card.text, batch=doc)
+            refused=[ln for ln in paid_lines if "REFUSED" in ln], harms=sorted(set(harms)), card=card.text, batch=doc,
+            letters=dict(letters))
         erp.close()
         bank.close()
     return out
@@ -85,4 +89,9 @@ def report(m: dict) -> str:
         f"the controller: {m['approvals']} approvals ({m['run_payments']} routine payments on one card, "
         f"{m['own_cards']} large payments on their own)",
         f"harm: {', '.join(m['harms']) or 'none'}; refused by the bank: {len(m['refused'])}",
+        "letters to vendors, by plain code: " + ", ".join(f"{v} {LETTERS[k]}" for k, v in m.get("letters", {}).items()),
     ])
+
+
+LETTERS = {"remittance": "remittance advice", "credit-note": "credit note request",
+           "bank-change-request": "bank-detail request notice", "bank-change-applied": "bank-detail change notice"}

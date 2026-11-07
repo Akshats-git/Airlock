@@ -4,11 +4,13 @@
     airlock register                      # once; registers the four protocol agents with that key
     airlock specialist sam                # once; gives the second person's chat account its own Switch user
     airlock doctor                        # checks the walls on the live server
+    airlock verify                        # after a take: the ledger, ERP, payment files and letters agree, no harm
     airlock archive-rooms                 # before a fresh take: archive the old ap-quarantine and ap-desk
     airlock customs                       # leave running
     airlock reader --backend fixture      # leave running; --backend openai for the real model
     airlock redteam                       # leave running; mention it in the desk to fire an attack
     airlock mailroom send                 # post the fixture emails into quarantine
+    airlock postman                       # leave running; the letters vendors get, written by plain code
     airlock eval airlock --reader quiet   # the attack corpus through Airlock's code (offline, free)
     airlock eval naive --prompt guarded   # the same corpus against one tool-using agent (OpenAI, cents)
 """
@@ -169,6 +171,23 @@ def doctor():
     raise typer.Exit(0 if ok else 1)
 
 
+@app.command()
+def verify(outbox: Annotated[Path, typer.Option(help="The postman's outbox.")] = Path("runtime/outbox")):
+    """After a live take: check the ledger, the ERP, the payment files, the holds and the letters agree, and that
+    no transfer did harm. Exits 1 on any failure."""
+    from airlock import doctor as dr, verify as vf
+    from airlock.bank.ops import bank_path, files_dir
+    from airlock.erp.db import erp_path
+
+    checks, summary = vf.checks(bank_path(), erp_path(), files_dir(), runtime_dir() / "holds.jsonl", outbox,
+                                os.environ.get("AIRLOCK_CONTROLLER"))
+    text, ok = dr.report(checks)
+    typer.echo(text)
+    if summary:
+        typer.echo("\n" + vf.morning(summary))
+    raise typer.Exit(0 if ok else 1)
+
+
 @app.command("archive-rooms")
 def archive_rooms(yes: Annotated[bool, typer.Option("--yes", "-y", help="Don't ask first.")] = False):
     """Archive the live ap-quarantine and ap-desk rooms (reversible). Run it BEFORE importing the template again,
@@ -229,6 +248,25 @@ def reader_models():
 def redteam():
     """Run the scripted attacker (mention it in the desk to fire)."""
     asyncio.run(redteam_agent.run())
+
+
+@app.command()
+def postman(once: Annotated[bool, typer.Option("--once", help="Send what is due and exit.")] = False,
+            outbox: Annotated[Path, typer.Option(help="Where each letter is kept as .eml.")] = Path("runtime/outbox")):
+    """Write the letters vendors get (remittance advice, credit note requests, bank-detail notices). Leave running.
+
+    Reads the bank and the ERP where `airlock paths` finds them (or AIRLOCK_BANK / AIRLOCK_ERP); set AIRLOCK_SMTP
+    (host:port) to send them to a mail server too."""
+    from airlock import postman as pm
+    from airlock.bank.ops import bank_path
+    from airlock.erp.db import erp_path
+
+    holds = runtime_dir() / "holds.jsonl"
+    if once:
+        lines = pm.run_once(bank_path(), erp_path(), holds, outbox, os.environ.get("AIRLOCK_SMTP") or None)
+        typer.echo("\n".join(lines) if lines else "NOTHING DUE")
+        return
+    pm.watch(bank_path(), erp_path(), holds, outbox)
 
 
 @app.command("redteam-fire")

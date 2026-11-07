@@ -8,11 +8,13 @@ validated values, ids it assigned and fixed reason codes (see ``airlock.customs.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
 from dataclasses import dataclass, field
 from datetime import date
+from pathlib import Path
 from typing import Callable
 
 from airlock.agents import wire
@@ -45,6 +47,7 @@ class Card:
     text: str
     cleared: int
     held: int
+    holds: tuple[gate.Held, ...] = ()
 
 
 class Intake:
@@ -116,7 +119,23 @@ class Intake:
         text = gate.render_card(decisions, day, rid)  # type: ignore[arg-type]  # the run id is a string
         if cleared:
             text = f"@{self._names.clerk} {text}"
-        return Card(rid, text, cleared, len(decisions) - cleared)
+        return Card(rid, text, cleared, len(decisions) - cleared,
+                    tuple(d for d in decisions if isinstance(d, gate.Held)))
+
+
+def record_holds(card: Card, path: Path | None = None) -> None:
+    """Append the run's held records to runtime/holds.jsonl: ids, the vendor (if the sender is one) and reason
+    codes, never a word of the email. The postman tells a vendor when mail from its domain asked for new bank
+    details."""
+    from airlock.agents.common import runtime_dir
+    if not card.holds:
+        return
+    path = path or runtime_dir() / "holds.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as f:
+        for h in card.holds:
+            f.write(json.dumps({"record_id": h.record_id, "vendor_id": h.vendor_id, "reasons": list(h.reasons),
+                                "run": card.run}) + "\n")
 
 
 NOT_SPECIALIST = "only the AP specialist, a person, can record a bank-detail callback"
@@ -182,6 +201,7 @@ async def run(names: Names | None = None) -> None:
     async def deliver(card: Card | None) -> None:
         if card:
             log.info("run %s decided: cleared=%d held=%d", card.run, card.cleared, card.held)
+            record_holds(card)
             await apost(agent, desk, card.text)
 
     async def on_message(msg: Message) -> None:
