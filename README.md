@@ -249,9 +249,12 @@ More, with a second person at the desk and the bank-detail change: [docs/DETAILS
 - The routine payment run's card shows the count, total and fingerprint, not each account. The bank pays the run
   only to accounts on its own beneficiary list, at most $10,000 each, to accounts unchanged for 30 days, and only if
   the run matches the card exactly; anything else gets its own card. Set the cap with `AIRLOCK_ROUTINE_CAP_CENTS`.
-- `approved_by` on a bank receipt says `switch-approval`. Switch records who clicked Allow once
-  (`answered_by`), but gives it only to the agent's session host, not to a tool the agent runs, so the bank
-  can't stamp the name on the payment. It is on the card in the thread.
+- `approved_by` on a bank receipt is the controller's name, and the name is sound for one reason: treasury is
+  owner-only, and Switch lets only someone who may address an agent answer its approval cards, so the one person
+  who can allow a payment is treasury's owner. `bootstrap` takes that name from Switch (the one person in
+  `ap-quarantine`) and gives it to the bank tool; `doctor` and `verify` fail if the name no longer matches
+  Switch or if treasury stops being owner-only. Switch's own record of the click (`answered_by`) is shown on
+  the card in the thread; it isn't given to a tool the agent runs, so the bank doesn't rely on it.
 - Agents inherit their owner's Switch permissions. Airlock gives the reader no tools, and customs and the
   mailroom are plain code, but it is a property of Switch to be aware of.
 - Linux only so far. Console is early access on Linux and needs `--ozone-platform=x11 --disable-gpu

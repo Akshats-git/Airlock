@@ -43,6 +43,15 @@ def test_pay_moves_money_and_writes_receipt(desk):
     assert receipt["payment_id"] == "PAY-0001"
 
 
+def test_the_receipt_names_the_controller_when_the_bank_knows_them(desk, monkeypatch):
+    monkeypatch.setenv("AIRLOCK_CONTROLLER", "akshat")
+    r = acme()
+    assert r.output.splitlines()[0].endswith("approved_by=akshat")
+    assert json.loads((desk / "inbox" / "receipts.jsonl").read_text())["approved_by"] == "akshat"
+    monkeypatch.setenv("AIRLOCK_APPROVER", "someone-else")  # an explicit override still wins
+    assert run("PAY-0002", "--to", "Globex Ltd", "--iban", GLOBEX_IBAN, "--amount", "4300.00").output.splitlines()[0].endswith("approved_by=someone-else")
+
+
 def test_pay_is_idempotent(desk):
     acme()
     again = acme()

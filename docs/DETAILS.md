@@ -48,7 +48,7 @@ person the template seats in `ap-quarantine`, the person who ran it and owns tre
 bank tool; `doctor` shows it. Set `AIRLOCK_CONTROLLER` to override.
 All four rows were seen live on the server. For the last one treasury showed one card, "Apply bank detail change
 BC-0001 for Initech Inc" with the command above, and after Allow once posted "APPLIED BC-0001 Initech Inc now pays
-to GB33BUKB20201555555555 (was NL91ABNA0417164300); verified_by=sam approved_by=switch-approval"; the bank's list
+to GB33BUKB20201555555555 (was NL91ABNA0417164300); verified_by=sam approved_by=akshat"; the bank's list
 and the ERP's copy both changed, with an audit entry. The wrong-account and applied-twice refusals were run
 through treasury's own `./bin/bank`.
 

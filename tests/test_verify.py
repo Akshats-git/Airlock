@@ -64,3 +64,11 @@ def test_money_out_of_thin_air_fails(desk):
     bank.commit()
     got, _ = run(desk)
     assert any(k.startswith("bank:") and v == doctor.FAIL for k, v in got.items())
+
+
+def test_an_unexpected_approver_fails(desk):
+    bank = sqlite3.connect(desk / "bank.sqlite")
+    bank.execute("UPDATE ledger SET approved_by='mallory' WHERE tx_id='TX-0001'")
+    bank.commit()
+    got, _ = run(desk)
+    assert got["transfers approved by someone other than the controller: mallory"] == doctor.FAIL

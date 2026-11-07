@@ -159,6 +159,7 @@ def doctor():
 
     names = Names.from_env()
     checks: list[dr.Check] = []
+    live: str | None = None
     try:
         api = local.api_url()
         checks.append(dr.Check(dr.OK, f"Switch server at {api}"))
@@ -173,12 +174,13 @@ def doctor():
             checks += dr.walls(rooms, detail, names)
             checks += dr.people(rooms, detail, names, customs_agent.specialist_name())
             checks += dr.addressing(agent.call("list_agents"), names)
+            live = dr.controller(rooms, detail, names)
         except (HttpError, OSError) as e:
             checks.append(dr.Check(dr.FAIL, f"the server refused customs: {e}", "is the local server running?"))
     try:
         agents = local.agents_dir(api=api, clerk=names.clerk, treasury=names.treasury)
         checks += dr.files(agents, names)
-        checks += dr.controller_check(agents, names)
+        checks += dr.controller_check(agents, names, live)
     except local.NotFound as e:
         checks.append(dr.Check(dr.FAIL, "agents' folders not found", str(e)))
     checks += dr.listeners(runtime_dir() / "pids")
@@ -195,8 +197,20 @@ def verify(outbox: Annotated[Path, typer.Option(help="The postman's outbox.")] =
     from airlock.bank.ops import bank_path, files_dir
     from airlock.erp.db import erp_path
 
-    checks, summary = vf.checks(bank_path(), erp_path(), files_dir(), runtime_dir() / "holds.jsonl", outbox,
-                                os.environ.get("AIRLOCK_CONTROLLER") or _controller(Names.from_env()))
+    names = Names.from_env()
+    live, owner_only = _controller(names), None
+    try:
+        owner_only = dr.treasury_owner_only(load_agent(names.customs).call("list_agents"), names)
+    except (HttpError, OSError, ValueError, KeyError, FileNotFoundError):
+        pass
+    controller = os.environ.get("AIRLOCK_CONTROLLER") or live
+    checks, summary = vf.checks(bank_path(), erp_path(), files_dir(), runtime_dir() / "holds.jsonl", outbox, controller)
+    try:
+        agents = local.agents_dir(api=local.api_url(), clerk=names.clerk, treasury=names.treasury)
+        checks += dr.controller_check(agents, names, live)
+    except local.NotFound:
+        pass
+    checks += [owner_only] if owner_only else []
     text, ok = dr.report(checks)
     typer.echo(text)
     if summary:

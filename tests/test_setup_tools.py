@@ -282,3 +282,28 @@ def test_the_controller_is_the_one_person_in_quarantine(tmp_path):
     (tmp_path / names.treasury / "bin").mkdir(parents=True)
     (tmp_path / names.treasury / "bin" / "bank").write_text('export AIRLOCK_CONTROLLER="akshat"\n')
     assert dr.controller_check(tmp_path, names)[0].status == dr.OK
+
+
+def test_the_bank_tool_must_name_the_controller_switch_seats(tmp_path):
+    from airlock import doctor as dr
+    from airlock.agents.common import Names
+
+    names = Names()
+    (tmp_path / names.treasury / "bin").mkdir(parents=True)
+    (tmp_path / names.treasury / "bin" / "bank").write_text('export AIRLOCK_CONTROLLER="akshat"\n')
+    assert dr.controller_check(tmp_path, names, "akshat")[0].status == dr.OK
+    assert "approved_by=akshat" in dr.controller_check(tmp_path, names, "akshat")[0].label
+    stale = dr.controller_check(tmp_path, names, "maria")[0]
+    assert stale.status == dr.FAIL and "akshat" in stale.label and "maria" in stale.label
+
+
+def test_treasury_must_still_be_owner_only():
+    from airlock import doctor as dr
+    from airlock.agents.common import Names
+
+    names = Names()
+    only = {"rules": [{"owner": True}]}
+    open_ = {"rules": [{"owner": True, "owner_agents": True}]}
+    assert dr.treasury_owner_only([{"name": names.treasury, "addressing_policy": only}], names).status == dr.OK
+    assert dr.treasury_owner_only([{"name": names.treasury, "addressing_policy": open_}], names).status == dr.FAIL
+    assert dr.treasury_owner_only([], names).status == dr.FAIL

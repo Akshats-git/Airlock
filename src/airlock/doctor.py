@@ -122,14 +122,19 @@ def controller(rooms: list[dict], detail: Callable[[str], dict], names: Names) -
     return people.pop() if len(people) == 1 else None
 
 
-def controller_check(agents: Path, names: Names) -> list[Check]:
+def controller_check(agents: Path, names: Names, live: str | None = None) -> list[Check]:
+    """The bank's wrapper names the controller; `live` is who Switch seats in the quarantine room right now."""
     wrapper = agents / names.treasury / "bin" / "bank"
     text = wrapper.read_text() if wrapper.exists() else ""
-    if "AIRLOCK_CONTROLLER=" in text:
-        who = text.split('AIRLOCK_CONTROLLER="', 1)[1].split('"', 1)[0]
-        return [Check(OK, f"the bank knows the controller is {who}, and refuses a bank-detail change they verified")]
-    return [Check(WARN, "the bank doesn't know who the controller is",
-                  "scripts/take.sh reset finds them in Switch, or set AIRLOCK_CONTROLLER=<chat username>")]
+    if "AIRLOCK_CONTROLLER=" not in text:
+        return [Check(WARN, "the bank doesn't know who the controller is",
+                      "scripts/take.sh reset finds them in Switch, or set AIRLOCK_CONTROLLER=<chat username>")]
+    who = text.split('AIRLOCK_CONTROLLER="', 1)[1].split('"', 1)[0]
+    if live and live != who:
+        return [Check(FAIL, f"the bank's tool names {who} as the controller, but Switch seats {live} in the "
+                            f"quarantine room", "scripts/take.sh reset")]
+    return [Check(OK, f"payments are recorded approved_by={who}, the one person Switch lets answer treasury's cards; "
+                      f"the bank also refuses a bank-detail change {who} verified")]
 
 
 def _owner_only(policy: dict | None) -> bool:
@@ -138,17 +143,21 @@ def _owner_only(policy: dict | None) -> bool:
                                and not r.get("agents") and not r.get("platform") for r in rules)
 
 
+def treasury_owner_only(agents: list[dict], names: Names) -> Check:
+    t = {a.get("name"): a for a in agents}.get(names.treasury)
+    if t is None:
+        return Check(FAIL, "treasury does not exist", "run the Airlock template in Switch Console")
+    if _owner_only(t.get("addressing_policy")):
+        return Check(OK, "treasury takes instructions from its owner only (not even the owner's agents), "
+                         "so only the owner can answer its approval cards")
+    return Check(FAIL, "treasury accepts instructions from someone other than its owner",
+                 "set treasury's 'Who can talk to your agent' to 'Only me' in Console")
+
+
 def addressing(agents: list[dict], names: Names) -> list[Check]:
     by_name = {a.get("name"): a for a in agents}
     out: list[Check] = []
-    t = by_name.get(names.treasury)
-    if t is None:
-        out.append(Check(FAIL, "treasury does not exist", "run the Airlock template in Switch Console"))
-    elif _owner_only(t.get("addressing_policy")):
-        out.append(Check(OK, "treasury takes instructions from its owner only (not even the owner's agents)"))
-    else:
-        out.append(Check(FAIL, "treasury accepts instructions from someone other than its owner",
-                         "set treasury's 'Who can talk to your agent' to 'Only me' in Console"))
+    out.append(treasury_owner_only(agents, names))
     c = by_name.get(names.clerk)
     if c is not None:
         kind = str(c.get("connector_type", ""))
