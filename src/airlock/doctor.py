@@ -114,6 +114,24 @@ def people(rooms: list[dict], detail: Callable[[str], dict], names: Names, speci
     return [Check(OK, f"the specialist {specialist} is in {names.desk} and not in {names.quarantine}")]
 
 
+def controller(rooms: list[dict], detail: Callable[[str], dict], names: Names) -> str | None:
+    """The controller's chat username, from Switch: the template seats exactly one person in the quarantine room,
+    the person who ran it, who owns treasury. None unless that is still exactly one person."""
+    q, _ = _one_room(rooms, names.quarantine)
+    people = set(detail(q["room_id"]).get("connected_user_names", [])) if q else set()
+    return people.pop() if len(people) == 1 else None
+
+
+def controller_check(agents: Path, names: Names) -> list[Check]:
+    wrapper = agents / names.treasury / "bin" / "bank"
+    text = wrapper.read_text() if wrapper.exists() else ""
+    if "AIRLOCK_CONTROLLER=" in text:
+        who = text.split('AIRLOCK_CONTROLLER="', 1)[1].split('"', 1)[0]
+        return [Check(OK, f"the bank knows the controller is {who}, and refuses a bank-detail change they verified")]
+    return [Check(WARN, "the bank doesn't know who the controller is",
+                  "scripts/take.sh reset finds them in Switch, or set AIRLOCK_CONTROLLER=<chat username>")]
+
+
 def _owner_only(policy: dict | None) -> bool:
     rules = (policy or {}).get("rules") or []
     return bool(rules) and all(r.get("owner") and not r.get("owner_agents") and not r.get("users")

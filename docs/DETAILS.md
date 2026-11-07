@@ -43,7 +43,9 @@ The controller then has treasury apply it, on an approval card that shows the ne
 | controller | `@treasury apply BC-0001` | one approval card: `./bin/bank change apply BC-0001 --to "Initech Inc" --iban GB33…`; after Allow once the beneficiary list and the ERP's copy change, and the next batch pays the new account |
 
 The bank refuses a change nobody recorded, an account or vendor other than the one verified, a change applied
-twice, and, with `AIRLOCK_CONTROLLER` set when you run `take.sh reset`, one the controller verified themselves.
+twice, and one the controller verified themselves. `take.sh reset` asks Switch who the controller is (the one
+person the template seats in `ap-quarantine`, the person who ran it and owns treasury) and gives that name to the
+bank tool; `doctor` shows it. Set `AIRLOCK_CONTROLLER` to override.
 All four rows were seen live on the server. For the last one treasury showed one card, "Apply bank detail change
 BC-0001 for Initech Inc" with the command above, and after Allow once posted "APPLIED BC-0001 Initech Inc now pays
 to GB33BUKB20201555555555 (was NL91ABNA0417164300); verified_by=sam approved_by=switch-approval"; the bank's list

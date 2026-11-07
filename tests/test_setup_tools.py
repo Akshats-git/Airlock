@@ -267,3 +267,18 @@ def test_doctor_checks_the_specialists_seat():
     assert seat(["akshat"], ["akshat"]).status == dr.WARN
     unnamed = dr.people(ROOMS, _people(["akshat"], ["akshat", "sam"]), N, None)[0]
     assert unnamed.status == dr.OK and "akshat, sam" in unnamed.label
+
+
+def test_the_controller_is_the_one_person_in_quarantine(tmp_path):
+    from airlock import doctor as dr
+    from airlock.agents.common import Names
+
+    names = Names()
+    rooms = [{"name": names.quarantine, "room_id": "q", "archived": False},
+             {"name": names.quarantine, "room_id": "old", "archived": True}]
+    assert dr.controller(rooms, lambda rid: {"connected_user_names": ["akshat"]}, names) == "akshat"
+    assert dr.controller(rooms, lambda rid: {"connected_user_names": ["akshat", "sam"]}, names) is None
+    assert dr.controller([], lambda rid: {}, names) is None
+    (tmp_path / names.treasury / "bin").mkdir(parents=True)
+    (tmp_path / names.treasury / "bin" / "bank").write_text('export AIRLOCK_CONTROLLER="akshat"\n')
+    assert dr.controller_check(tmp_path, names)[0].status == dr.OK

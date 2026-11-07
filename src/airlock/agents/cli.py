@@ -133,8 +133,23 @@ def bootstrap(agents_dir: Annotated[Path | None, typer.Option(help="Where Consol
     if agents_dir is None:
         api = _found(api_url)
         agents_dir = _found(lambda: local.agents_dir(api=api, clerk=names.clerk, treasury=names.treasury))
+    if not os.environ.get("AIRLOCK_CONTROLLER"):
+        who = _controller(names)
+        if who:
+            os.environ["AIRLOCK_CONTROLLER"] = who
+            typer.echo(f"controller: {who} (the one person in {names.quarantine}, who ran the template)")
     for name, path in install(agents_dir, names).items():
         typer.echo(f"{name}: {path}")
+
+
+def _controller(names: Names) -> str | None:
+    """Ask Switch who the controller is; None if the server or the rooms can't say."""
+    from airlock import doctor as dr
+    try:
+        agent = load_agent(names.customs)
+        return dr.controller(agent.call("list_rooms"), lambda rid: agent.call("get_room_detail", room_id=rid), names)
+    except (HttpError, OSError, ValueError, KeyError):
+        return None
 
 
 @app.command()
@@ -163,6 +178,7 @@ def doctor():
     try:
         agents = local.agents_dir(api=api, clerk=names.clerk, treasury=names.treasury)
         checks += dr.files(agents, names)
+        checks += dr.controller_check(agents, names)
     except local.NotFound as e:
         checks.append(dr.Check(dr.FAIL, "agents' folders not found", str(e)))
     checks += dr.listeners(runtime_dir() / "pids")
@@ -180,7 +196,7 @@ def verify(outbox: Annotated[Path, typer.Option(help="The postman's outbox.")] =
     from airlock.erp.db import erp_path
 
     checks, summary = vf.checks(bank_path(), erp_path(), files_dir(), runtime_dir() / "holds.jsonl", outbox,
-                                os.environ.get("AIRLOCK_CONTROLLER"))
+                                os.environ.get("AIRLOCK_CONTROLLER") or _controller(Names.from_env()))
     text, ok = dr.report(checks)
     typer.echo(text)
     if summary:
