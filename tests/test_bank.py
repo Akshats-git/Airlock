@@ -36,7 +36,8 @@ def acme(amount="12400.00", iban=ACME_IBAN, to="Acme Corp", pid="PAY-0001"):
 def test_pay_moves_money_and_writes_receipt(desk):
     r = acme()
     assert r.exit_code == 0
-    assert r.output.strip() == "PAID PAY-0001 Acme Corp 12400.00 USD tx=TX-0001 approved_by=switch-approval"
+    assert r.output.splitlines()[0] == "PAID PAY-0001 Acme Corp 12400.00 USD tx=TX-0001 approved_by=switch-approval"
+    assert r.output.splitlines()[1].startswith("FILE payment-files/AIRLOCK-PAY-0001.pain001.xml: ISO 20022")
     assert ops.balance(ops.connect()) == ops.OPENING_CENTS - 1240000
     receipt = json.loads((desk / "inbox" / "receipts.jsonl").read_text())
     assert receipt["payment_id"] == "PAY-0001"
@@ -195,8 +196,10 @@ def test_the_run_pays_exactly_its_payments_and_nothing_else(batch, tmp_path):
     r = pay_run(*run_args(batch))
     assert r.exit_code == 0, r.output
     lines = r.output.strip().splitlines()
-    assert [ln.split()[1] for ln in lines[:-1]] == ["PAY-0002", "PAY-0003"]
-    assert lines[-1] == "RUN 2026-11-07-A: 2 routine payments, 9800.00 USD, approved_by=switch-approval"
+    assert [ln.split()[1] for ln in lines[:-2]] == ["PAY-0002", "PAY-0003"]
+    assert lines[-2] == "RUN 2026-11-07-A: 2 routine payments, 9800.00 USD, approved_by=switch-approval"
+    assert lines[-1] == ("FILE payment-files/AIRLOCK-2026-11-07-A-RUN.pain001.xml: ISO 20022 credit transfer, "
+                         "2 payments, 9800.00; bank status ACSC")
     assert ops.balance(ops.connect()) == ops.OPENING_CENTS - 980000  # Acme's 12,400 waits for its own card
     assert len((tmp_path / "inbox" / "receipts.jsonl").read_text().splitlines()) == 2
     assert acme().exit_code == 0  # its own card, its own command

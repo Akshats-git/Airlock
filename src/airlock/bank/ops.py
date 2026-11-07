@@ -45,6 +45,11 @@ def bank_path() -> Path:
     return Path(os.environ.get("AIRLOCK_BANK", "bank.sqlite"))
 
 
+def files_dir() -> Path:
+    """Where the ISO 20022 payment files go: next to the bank, in treasury's folder."""
+    return Path(os.environ.get("AIRLOCK_PAYMENT_FILES") or bank_path().parent / "payment-files")
+
+
 def connect(path: Path | None = None) -> sqlite3.Connection:
     conn = sqlite3.connect(path or bank_path())
     conn.row_factory = sqlite3.Row
@@ -72,7 +77,7 @@ def beneficiary(bank: sqlite3.Connection, vendor_id: str) -> sqlite3.Row | None:
 
 
 def pay(bank: sqlite3.Connection, erp: sqlite3.Connection, payment_id: str, to: str, iban: str, amount: str,
-        approver: str, receipts: Path | None = None) -> str:
+        approver: str, receipts: Path | None = None, files: Path | None = None) -> str:
     cap = int(os.environ.get("AIRLOCK_PAY_CAP_CENTS", "5000000"))
     cents = parse_amount(amount)
 
@@ -108,11 +113,16 @@ def pay(bank: sqlite3.Connection, erp: sqlite3.Connection, payment_id: str, to: 
         receipts.parent.mkdir(parents=True, exist_ok=True)
         with receipts.open("a") as f:
             f.write(json.dumps(dict(payment_id=payment_id, tx_id=tx, approved_by=approver, executed_at=ts)) + "\n")
-    return f"PAID {payment_id} {b['name']} {format_money(cents)} {p['currency']} tx={tx} approved_by={approver}"
+    out = f"PAID {payment_id} {b['name']} {format_money(cents)} {p['currency']} tx={tx} approved_by={approver}"
+    if files:
+        from airlock.bank import iso20022
+        from airlock.erp.db import today
+        out += "\n" + iso20022.write(bank, erp, f"AIRLOCK-{payment_id}", [payment_id], files, ts, today().isoformat())
+    return out
 
 
 def pay_run(bank: sqlite3.Connection, erp: sqlite3.Connection, batch_id: str, count: int, total: str, digest: str,
-            approver: str, receipts: Path | None = None) -> str:
+            approver: str, receipts: Path | None = None, files: Path | None = None) -> str:
     """Pay a batch's routine payments on one approval.
 
     The bank decides which payments are routine from its own records (amount, and when the account it holds was
@@ -140,6 +150,10 @@ def pay_run(bank: sqlite3.Connection, erp: sqlite3.Connection, batch_id: str, co
     out = [pay(bank, erp, p["id"], b["name"], b["iban"], format_money(p["amount_cents"]), approver, receipts)
            for p, b in run]
     out.append(f"RUN {batch_id}: {len(run)} routine payments, {total} USD, approved_by={approver}")
+    paid = [p["id"] for (p, _), line in zip(run, out) if line.startswith("PAID")]
+    if files and paid:
+        from airlock.bank import iso20022
+        out.append(iso20022.write(bank, erp, f"AIRLOCK-{batch_id}-RUN", paid, files, now(), today().isoformat()))
     return "\n".join(out)
 
 

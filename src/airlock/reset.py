@@ -27,6 +27,7 @@ def reset_all(root: Path, clerk: str = "clerk", treasury: str = "treasury") -> N
     bank = root / treasury / "bank.sqlite"
     _fresh(bank)
     bank_ops.connect(bank).close()
+    shutil.rmtree(root / treasury / "payment-files", ignore_errors=True)
 
     inbox = root / clerk / "inbox"
     if inbox.exists():

@@ -26,7 +26,8 @@ def pay_cmd(payment_id: str,
     approver = os.environ.get("AIRLOCK_APPROVER", "switch-approval")
     try:
         erp = erp_connect(erp_path(), readonly=True)
-        typer.echo(ops.pay(ops.connect(), erp, payment_id, to, iban, amount, approver, Path(receipts) if receipts else None))
+        typer.echo(ops.pay(ops.connect(), erp, payment_id, to, iban, amount, approver, Path(receipts) if receipts else None,
+                         ops.files_dir()))
     except ops.BankError as e:
         typer.echo(f"REFUSED {e}")
         raise typer.Exit(1)
@@ -43,7 +44,7 @@ def pay_run_cmd(batch_id: str,
     try:
         erp = erp_connect(erp_path(), readonly=True)
         typer.echo(ops.pay_run(ops.connect(), erp, batch_id, count, total, digest, approver,
-                               Path(receipts) if receipts else None))
+                               Path(receipts) if receipts else None, ops.files_dir()))
     except ops.BankError as e:
         typer.echo(f"REFUSED {e}")
         raise typer.Exit(1)

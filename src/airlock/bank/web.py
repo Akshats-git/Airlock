@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from airlock.bank import ops
@@ -42,6 +43,9 @@ td.acct{overflow-wrap:anywhere}
 <div class="out" id="out"></div></div>
 <table><thead><tr><th>Tx</th><th>Payee</th><th class="hide-s">Approved by</th><th class="n">Amount</th></tr></thead>
 <tbody id="rows"></tbody></table><div class="empty" id="empty">No transfers yet. Money moves only after the controller allows it.</div>
+<h2>Payment files</h2>
+<table><thead><tr><th>ISO 20022 credit transfer (pain.001)</th><th class="hide-s">Bank status (pain.002)</th></tr></thead><tbody id="files"></tbody></table>
+<div class="empty" id="nofiles">None yet. Each approved run writes the file a bank portal accepts.</div>
 <h2>Beneficiary list</h2>
 <table><thead><tr><th>Vendor</th><th>Pays only to</th><th class="hide-s">Verified</th></tr></thead><tbody id="payees"></tbody></table>
 </main><script>
@@ -69,17 +73,36 @@ a.textContent=b.name;c.className="acct";c.textContent=b.iban;v.className="hide-s
 for(const p of (d.pending_changes||[]).filter(p=>p.vendor_id===b.vendor_id)){const s=document.createElement("div");s.className="pend";
 s.textContent="pending "+p.id+": → "+p.new_iban+" (callback by "+p.verified_by+"; waiting for the controller)";c.append(s);}
 tr.append(a,c,v);pb.append(tr);}
+const fb=document.getElementById("files");fb.textContent="";
+document.getElementById("nofiles").style.display=(d.files||[]).length?"none":"block";
+for(const f of d.files||[]){const tr=document.createElement("tr");if(!first&&!seen.has(f.pain001))tr.className="new";seen.add(f.pain001);
+const a=document.createElement("td"),b=document.createElement("td");b.className="hide-s";
+for(const [td,name] of [[a,f.pain001],[b,f.pain002]]){const l=document.createElement("a");l.href="/files/"+name;l.textContent=name;l.style.color="inherit";td.append(l);}
+tr.append(a,b);fb.append(tr);}
 first=false;}catch(e){document.getElementById("live").textContent="offline"}}
 tick();setInterval(tick,1000);
 </script></body></html>"""
 
 
+_FILE = re.compile(r"/files/(AIRLOCK-[A-Z0-9-]{1,40}\.pain00[12]\.xml)")
+
+
+def files() -> list[dict]:
+    """The payment files treasury's bank tool wrote, newest first."""
+    d = ops.files_dir()
+    found = sorted(d.glob("*.pain001.xml"), key=lambda f: f.stat().st_mtime, reverse=True) if d.is_dir() else []
+    return [{"pain001": f.name, "pain002": f.name.replace(".pain001.", ".pain002.")} for f in found]
+
+
 class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
+        m = _FILE.fullmatch(self.path)
         if self.path.startswith("/api/ledger"):
             conn = ops.connect()
-            body, ctype = json.dumps(ops.snapshot(conn)).encode(), "application/json"
+            body, ctype = json.dumps({**ops.snapshot(conn), "files": files()}).encode(), "application/json"
             conn.close()
+        elif m and (ops.files_dir() / m[1]).is_file():
+            body, ctype = (ops.files_dir() / m[1]).read_bytes(), "text/xml; charset=utf-8"
         elif self.path in ("/", "/index.html"):
             body, ctype = PAGE.encode(), "text/html; charset=utf-8"
         else:

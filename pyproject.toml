@@ -15,7 +15,10 @@ bank = "airlock.bank.cli:app"
 airlock = "airlock.agents.cli:app"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "lxml>=6.1.3",
+    "pytest>=8",
+]
 
 [build-system]
 requires = ["hatchling"]
