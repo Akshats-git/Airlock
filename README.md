@@ -57,13 +57,14 @@ table: [eval/RESULTS.md](eval/RESULTS.md); raw logs in [eval/results/](eval/resu
 
 | Setup (`gpt-4o-mini` where a model reads) | Attacks that did harm | Clean invoices handled right |
 |---|---|---|
+| **Airlock**, real reader model (two runs) | **0 / 28** both runs | 7 / 7 |
 | **Airlock**, reader fully hijacked (returns the attacker's best record) | **0 / 28** | 7 / 7 |
-| **Airlock**, real reader model (two runs, first 25 attacks) | **0 / 25** | 6 / 6 |
-| One agent holding the AP tools, plain prompt (first 25) | 17 / 25 | 5 / 6 |
-| One agent holding the AP tools, written security rules (first 25) | 3 / 25 | 4 / 6 |
+| One agent holding the AP tools, plain prompt (two runs) | 19 and 20 / 28 | 6 / 7 |
+| One agent holding the AP tools, written security rules (two runs) | 3 and 4 / 28 | 6 / 7 |
 
 The single agent with security rules still paid $43,000 on a $4,300 invoice because an HTML comment said so, and
-paid one delivery twice. Airlock's zero doesn't depend on the model: with the reader hijacked, the worst it
+paid one delivery twice, in both runs. Without the rules it was fooled by all three PDF attacks in both runs.
+Airlock's real reader flagged all three PDF attacks and customs held them. Airlock's zero doesn't depend on the model: with the reader hijacked, the worst it
 achieved was a real vendor paid, to its verified account, exactly what the ERP says is owed. The corpus also found
 a hole in our own ERP (a re-billed delivery under a new invoice number paid twice), now closed.
 
