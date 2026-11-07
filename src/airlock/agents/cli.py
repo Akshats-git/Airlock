@@ -347,9 +347,12 @@ def _abort(item_id: str, error: str) -> None:
     raise typer.Exit(1)
 
 
+Repeat = Annotated[int, typer.Option(min=1, max=10, help="Run the corpus this many times; the report gives the range.")]
+
+
 @eval_app.command("airlock")
 def eval_airlock(reader: Annotated[str, typer.Option(help="quiet or raw (a hijacked reader, free) or openai")] = "quiet",
-                 only: Only = None, corpus: Corpus = Path("eval/corpus")):
+                 only: Only = None, corpus: Corpus = Path("eval/corpus"), repeat: Repeat = 1):
     """Run each corpus email through mailroom, reader, customs, the clerk's ERP and the bank."""
     from airlock.eval import airlock_run, corpus as corpus_mod
     if reader not in ("quiet", "raw", "openai"):
@@ -361,18 +364,21 @@ def eval_airlock(reader: Annotated[str, typer.Option(help="quiet or raw (a hijac
         _preflight(os.environ["OPENAI_API_KEY"], real.model)
         extractor = airlock_run.Watched(real)
         typer.echo(f"real reader: {real.model}, {len(items)} calls")
-    rows = []
-    for i in items:
-        rows.append(airlock_run.run_item(i, reader, extractor))
-        if extractor and extractor.error:  # the live reader would hold it too, but that measures the network
-            _abort(i.id, extractor.error)
-    _finish_eval(rows)
+    for n in range(1, repeat + 1):
+        if repeat > 1:
+            typer.echo(f"-- run {n} of {repeat}")
+        rows = []
+        for i in items:
+            rows.append(airlock_run.run_item(i, reader, extractor))
+            if extractor and extractor.error:  # the live reader would hold it too, but that measures the network
+                _abort(i.id, extractor.error)
+        _finish_eval(rows)
 
 
 @eval_app.command("naive")
 def eval_naive(prompt: Annotated[str, typer.Option(help="naive or guarded")] = "guarded",
                model: Annotated[str, typer.Option(help="OpenAI model id (default: the reader's model).")] = "",
-               only: Only = None, corpus: Corpus = Path("eval/corpus")):
+               only: Only = None, corpus: Corpus = Path("eval/corpus"), repeat: Repeat = 1):
     """Give each corpus email to one agent that holds the AP tools itself. Tools only record; nothing runs."""
     from airlock.eval import corpus as corpus_mod
     from airlock.eval import naive
@@ -387,15 +393,18 @@ def eval_naive(prompt: Annotated[str, typer.Option(help="naive or guarded")] = "
     typer.echo(f"{prompt} agent on {model}: {len(items)} emails, at most {naive.MAX_STEPS} calls each")
     _preflight(key, model)
     chat = naive.OpenAIChat(key)
-    rows = []
-    for i in items:
-        try:
-            rows.append(naive.run_item(i, prompt, model, chat))
-        except RuntimeError as e:
-            _abort(i.id, str(e))
-    tokens = sum(r["usage"]["prompt_tokens"] + r["usage"]["completion_tokens"] for r in rows)
-    typer.echo(f"tokens used: {tokens}")
-    _finish_eval(rows)
+    for n in range(1, repeat + 1):
+        if repeat > 1:
+            typer.echo(f"-- run {n} of {repeat}")
+        rows = []
+        for i in items:
+            try:
+                rows.append(naive.run_item(i, prompt, model, chat))
+            except RuntimeError as e:
+                _abort(i.id, str(e))
+        tokens = sum(r["usage"]["prompt_tokens"] + r["usage"]["completion_tokens"] for r in rows)
+        typer.echo(f"tokens used: {tokens}")
+        _finish_eval(rows)
 
 
 @eval_app.command("morning")

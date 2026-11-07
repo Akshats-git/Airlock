@@ -214,3 +214,20 @@ def test_po_lookup_accepts_what_an_erp_search_would():
     assert norm_po("INV-99999") == "INV-99999"
     assert naive.Books(()).call("get_purchase_order", {"po_number": "10442"})["qty_received"] == 100
     assert Ledger([]).judge_payment("V-ACME", VERIFIED["V-ACME"], 1240000, "USD", "10001") == []
+
+
+def test_repeated_runs_report_a_range_and_ignore_runs_on_an_older_corpus(tmp_path):
+    from datetime import datetime
+    mix = [i for i in ITEMS if i.kind == "clean"][:2] + [i for i in ITEMS if i.kind == "attack"][:2]
+    base = [airlock_run.run_item(i, "quiet") for i in mix]
+    harmed = [dict(r, harms=["overpayment"]) if r["kind"] == "attack" else r for r in base]
+    report.save(base[:3], tmp_path, datetime(2026, 11, 7, 9))      # an older, smaller corpus: not comparable
+    report.save(base, tmp_path, datetime(2026, 11, 7, 10))
+    report.save(harmed, tmp_path, datetime(2026, 11, 7, 10))       # same second: kept as its own file
+    report.save(base, tmp_path, datetime(2026, 11, 7, 11))
+    assert len(list(tmp_path.glob("*.jsonl"))) == 4
+    hist = report.all_runs(tmp_path)["airlock-quiet"]
+    assert len(report.comparable(hist)) == 3
+    n_attacks = sum(r["kind"] == "attack" for r in base)
+    md = report.markdown(report.latest_runs(tmp_path), report.all_runs(tmp_path))
+    assert n_attacks == 2 and "0 to 2 over 3 runs" in md and "(harm in 1 of 3 runs)" in md
