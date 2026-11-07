@@ -13,6 +13,14 @@ the matching, and uses Switch rooms, addressing, document authorship and approva
 
 Demo video: _link added at submission_
 
+|  |  |
+|---|---|
+| **0 of 28** | attack emails did harm through Airlock, with a real model reading them (one agent holding the same tools: 19 to 20 of 28) |
+| **2 minutes** | from 30 vendor emails in the inbox to a payment batch ready for approval |
+| **4 approvals** | by the controller for 26 payments ($131,799.90); two other decisions by the AP specialist |
+
+![Airlock: vendor email stays in the quarantine room; customs, the only member of both rooms, passes a validated record to the desk, where the clerk matches it, people decide, and treasury pays only on the controller's approval card; a plain-code postman writes the letters vendors get](docs/img/architecture.svg)
+
 ## What it does in one morning, measured
 
 30 vendor emails arrive in the inbox. Measured live on Switch 0.31.0 (7 November, clerk on Codex):
@@ -27,6 +35,12 @@ Demo video: _link added at submission_
 | Paid, to verified accounts only, then reconciled | **26 payments, $131,799.90** |
 
 The same morning runs offline, free, in CI: `uv run airlock eval morning`.
+
+For scale, not a like-for-like comparison: Ardent Partners' *Accounts Payable Metrics That Matter 2025*, as
+reported by [WEX](https://www.wexinc.com/resources/blog/what-does-it-cost-to-process-an-invoice-ap-benchmarks-every-finance-team-should-know/),
+puts the average cost of processing one invoice at $9.40 and the average time at 9.2 days ($2.78 and 3.1 days for
+best-in-class teams). That time runs through approval and payment; Airlock's two minutes end at a batch awaiting
+the controller. What the numbers do show is who spent the time: 6 human actions for 27 invoices.
 
 ## What leaves the desk
 
@@ -72,7 +86,7 @@ a hole in our own ERP (a re-billed delivery under a new invoice number paid twic
 
 ```bash
 git clone https://github.com/Akshats-git/Airlock && cd Airlock && uv sync
-uv run pytest -q                              # 330 tests
+uv run pytest -q                              # 350 tests
 uv run airlock eval airlock --reader quiet    # the 28 attacks with a fully hijacked reader: 0 harm
 uv run airlock eval morning                   # the 30-email morning, end to end
 ```
@@ -112,9 +126,16 @@ controller's approval. A wrong number or a forged callback goes nowhere.
 
 </details>
 
-## How it works
+## Words used here
 
-![Airlock: vendor email stays in the quarantine room; customs, the only member of both rooms, passes a validated record to the desk, where the clerk matches it, people decide, and treasury pays only on the controller's approval card; a plain-code postman writes the letters vendors get](docs/img/architecture.svg)
+- **Quarantine** (`ap-quarantine`): the private room where raw vendor email is read. No agent with tools is in it.
+- **Customs**: plain code, the only member of both rooms. It passes a record only if it fits a strict schema.
+- **The desk** (`ap-desk`): the private room where the clerk, the people and treasury work, on validated records only.
+- **Treasury**: the agent that runs the bank tool. It obeys only its owner and asks before every payment command.
+- **The controller**: the person who owns treasury and answers its approval cards. **The AP specialist** is a second
+  person who works the desk and makes the phone call behind a bank-detail change.
+
+## How it works
 
 <details><summary>The same as text</summary>
 
@@ -142,6 +163,16 @@ TRUSTED    ap-desk (private) ─────────────────
 ```
 
 </details>
+
+**Prior art, and what is new.** The pattern is not new. Simon Willison described the
+[Dual LLM pattern](https://simonwillison.net/2023/Apr/25/dual-llm-pattern/) in April 2023: a quarantined model
+with no tools reads untrusted text, a privileged model with tools never sees that text, and ordinary code sits
+between them. Google DeepMind and ETH Zürich's
+[CaMeL](https://arxiv.org/abs/2503.18813) ("Defeating Prompt Injections by Design", Debenedetti et al., 2025)
+enforces a version of it with a custom interpreter and capabilities. Airlock builds it from the primitives of a
+chat platform instead: Switch's rooms, addressing, document authorship and approval cards do the enforcing, no
+prompt sits in the trust path, and it is measured against a single agent holding the same tools on the same
+attack corpus.
 
 ## Where Switch is the mechanism, not the messenger
 
@@ -257,7 +288,8 @@ More, with a second person at the desk and the bank-detail change: [docs/DETAILS
   the card in the thread; it isn't given to a tool the agent runs, so the bank doesn't rely on it.
 - Agents inherit their owner's Switch permissions. Airlock gives the reader no tools, and customs and the
   mailroom are plain code, but it is a property of Switch to be aware of.
-- Linux only so far. Console is early access on Linux and needs `--ozone-platform=x11 --disable-gpu
+- The live desk has run only on Ubuntu 24.04. The offline path (tests, the attack corpus, the morning) runs on
+  Linux and macOS in CI. Console is early access on Linux and needs `--ozone-platform=x11 --disable-gpu
   --password-store=gnome-libsecret` on Wayland.
 
 ## More

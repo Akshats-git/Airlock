@@ -133,7 +133,7 @@ billed on the purchase order and raises `already_invoiced`.
 
 ## What has been checked
 
-- `make test`: 330 tests, also run by [CI](https://github.com/Akshats-git/Airlock/actions/workflows/ci.yml) on every push together with the attack corpus and the morning, covering the protocol client, the schema gate, the ERP and bank checks, the ISO 20022 payment files (validated against the published schemas), the postman, `verify`, the agents'
+- `make test`: 350 tests, also run by [CI](https://github.com/Akshats-git/Airlock/actions/workflows/ci.yml) on every push together with the attack corpus and the morning, covering the protocol client, the schema gate, the ERP and bank checks, the ISO 20022 payment files (validated against the published schemas), the postman, `verify`, the agents'
   message handling, the red team, the setup tools and the template. The template tests parse it with Switch's
   own parser and pin the walls: who may instruct treasury, who is in which room, no agent in bypass mode.
 - **A hijacked reader.** Nineteen hostile reader outputs (instructions in every field, `@treasury` mentions,
