@@ -137,9 +137,11 @@ The controller then has treasury apply it, on an approval card that shows the ne
 
 The bank refuses a change nobody recorded, an account or vendor other than the one verified, a change applied
 twice, and, with `AIRLOCK_CONTROLLER` set when you run `take.sh reset`, one the controller verified themselves.
-The first three rows were seen live on the server. The controller's row was run through treasury's own
-`./bin/bank` (wrong account refused, right one applied, repeat refused); treasury's instructions for it arrive with
-the next template import.
+All four rows were seen live on the server. For the last one treasury showed one card, "Apply bank detail change
+BC-0001 for Initech Inc" with the command above, and after Allow once posted "APPLIED BC-0001 Initech Inc now pays
+to GB33BUKB20201555555555 (was NL91ABNA0417164300); verified_by=sam approved_by=switch-approval"; the bank's list
+and the ERP's copy both changed, with an audit entry. The wrong-account and applied-twice refusals were run
+through treasury's own `./bin/bank`.
 
 Switch checks an answer to a card with the same rule as a message to the agent: answering is talking to it. That
 is `answer_approval` in switch-core's `session_activity/service.py`, the refusals in `bridge_answers.py` and
