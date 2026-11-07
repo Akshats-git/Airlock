@@ -166,14 +166,14 @@ def files(agents: Path, names: Names) -> list[Check]:
 
 def listeners(pid_dir: Path) -> list[Check]:
     down = []
-    for name in ("customs", "reader", "redteam", "ledger"):
+    for name in ("customs", "reader", "redteam", "mailroom", "ledger"):
         try:
             os.kill(int((pid_dir / f"{name}.pid").read_text()), 0)
         except (OSError, ValueError):
             down.append(name)
     if down:
         return [Check(WARN, f"not running here: {', '.join(down)}", "scripts/take.sh reset")]
-    return [Check(OK, "customs, reader, red-team and the ledger page are running")]
+    return [Check(OK, "customs, reader, red-team, the mailroom (watching runtime/inbox) and the ledger page are running")]
 
 
 def report(checks: list[Check]) -> tuple[str, bool]:

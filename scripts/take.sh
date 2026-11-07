@@ -2,6 +2,7 @@
 # One command per step of a take.
 #   scripts/take.sh reset    stop the listeners, restore ERP and bank, start customs, reader, red-team and the ledger
 #   scripts/take.sh send     post the four fixture emails into quarantine (needs a running reset)
+#   scripts/take.sh deliver  drop mail into runtime/inbox/new; the always-on mailroom posts it (MAIL=fixtures/morning)
 #   scripts/take.sh doctor   check the walls and the setup against the live server
 #   scripts/take.sh status   what is running, and the bank balance
 #   scripts/take.sh stop     stop everything this script started
@@ -40,9 +41,11 @@ up() {
   start reader   uv run airlock reader --backend "$READER"
   start redteam  uv run airlock redteam
   start ledger   uv run bank serve
+  rm -rf runtime/inbox; mkdir -p runtime/inbox/new runtime/inbox/cur runtime/inbox/tmp
+  start mailroom uv run airlock mailroom watch --inbox runtime/inbox
   sleep 6
-  for n in customs reader redteam; do
-    grep -q " up\| ready" "$LOGS/$n.log" && echo "$n: up" || { echo "$n: NOT UP"; tail -3 "$LOGS/$n.log"; exit 1; }
+  for n in customs reader redteam mailroom; do
+    grep -q " up\| ready\| watching" "$LOGS/$n.log" && echo "$n: up" || { echo "$n: NOT UP"; tail -3 "$LOGS/$n.log"; exit 1; }
   done
   grep -o "using the [a-z]* extractor" "$LOGS/reader.log" | head -1
   echo "ledger: http://localhost:8099"
@@ -72,6 +75,8 @@ EOF
 case "${1:-}" in
   reset)  stop; locate; uv run airlock bootstrap >/dev/null; echo "ERP and bank restored in $AIRLOCK_AGENTS_DIR"; up ;;
   send)   uv run airlock mailroom send --directory "${MAIL:-fixtures/emails}" ;;
+  deliver) for f in "${MAIL:-fixtures/emails}"/*.eml; do cp "$f" "runtime/inbox/tmp/$(basename "$f")"; mv "runtime/inbox/tmp/$(basename "$f")" runtime/inbox/new/; done
+           echo "delivered $(ls runtime/inbox/new | wc -l) emails to runtime/inbox/new; the mailroom posts them within seconds" ;;
   doctor) uv run airlock doctor ;;
   status) locate
           for f in "$PIDS"/*.pid; do [ -e "$f" ] && { n=$(basename "$f" .pid); kill -0 "$(cat "$f")" 2>/dev/null && echo "$n: running" || echo "$n: dead"; }; done
