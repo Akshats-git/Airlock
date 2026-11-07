@@ -113,6 +113,10 @@ controller's approval. A wrong number or a forged callback goes nowhere.
 
 ## How it works
 
+![Airlock: vendor email stays in the quarantine room; customs, the only member of both rooms, passes a validated record to the desk, where the clerk matches it, people decide, and treasury pays only on the controller's approval card; a plain-code postman writes the letters vendors get](docs/img/architecture.svg)
+
+<details><summary>The same as text</summary>
+
 ```text
 UNTRUSTED  ap-quarantine (private) ───────────────────────────────────────────
   mailroom   posts each raw email under a header line it wrote       plain code
@@ -135,6 +139,8 @@ TRUSTED    ap-desk (private) ─────────────────
      ▼
   postman    letters to vendors from the records, to addresses on file  plain code
 ```
+
+</details>
 
 ## Where Switch is the mechanism, not the messenger
 
