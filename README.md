@@ -28,6 +28,25 @@ Demo video: _link added at submission_
 
 The same morning runs offline, free, in CI: `uv run airlock eval morning`.
 
+## What leaves the desk
+
+What a real AP team sends, not chat messages:
+
+- **The bank file.** Each approved command makes treasury's bank tool write an ISO 20022 credit-transfer file
+  (`pain.001.001.09`, the format bank portals accept for bulk payments) and the bank's status report
+  (`pain.002.001.10`). The tests validate both against the published ISO schemas. The values come from the
+  bank's own ledger, after its checks pass, never from the batch document. The ledger page links them.
+- **The letters vendors get.** A remittance advice for every payment, a credit-note request for every short
+  payment, and two bank-detail notices: "we received a request to change your bank details and changed
+  nothing; we will call you on the number we hold", and, after a change, "your details were changed after we
+  called you". On the 30-email morning that is 26, 2 and 1. No agent writes them. The **postman**, plain code
+  outside every room, builds each letter from fixed wording and the records of whoever owns the fact (the
+  bank's ledger, the ERP's credit notes, customs' holds), and sends it to the address on the bank's beneficiary
+  list, which no email can change. A hijacked agent gets no mail channel to the outside.
+- **Proof after the fact.** `scripts/take.sh verify` checks a live take from the records. The ledger and balance
+  agree, every transfer is an ERP payment reconciled in the ERP, the attack corpus's judge finds no harm, no
+  held record reached the ERP, every transfer is in exactly one payment file, and every letter went out.
+
 ## Attacked 25 ways, compared with one agent
 
 [25 attack emails](eval/corpus/) (hidden text, fake tool calls, CEO fraud, double billing, a fake auditor, a claimed
@@ -51,7 +70,7 @@ a hole in our own ERP (a re-billed delivery under a new invoice number paid twic
 
 ```bash
 git clone https://github.com/Akshats-git/Airlock && cd Airlock && uv sync
-uv run pytest -q                              # 311 tests
+uv run pytest -q                              # 330 tests
 uv run airlock eval airlock --reader quiet    # the 25 attacks with a fully hijacked reader: 0 harm
 uv run airlock eval morning                   # the 30-email morning, end to end
 ```
@@ -111,7 +130,9 @@ TRUSTED    ap-desk (private) ─────────────────
      ▼
   treasury   one `bank pay` command per payment -> approval card        Claude Code
      ▼
-  mock bank (live ledger page) · remittance · decision log
+  mock bank -> ISO 20022 pain.001 + pain.002 · live ledger page · decision log
+     ▼
+  postman    letters to vendors from the records, to addresses on file  plain code
 ```
 
 ## Where Switch is the mechanism, not the messenger
@@ -163,7 +184,9 @@ set `AIRLOCK_API` or `AIRLOCK_AGENTS_DIR` to override.
    [the second person](docs/DETAILS.md#a-second-person-at-the-desk)).
 6. **Put the data where the agents live and start the listeners:** `scripts/take.sh reset`. It installs the
    ERP, the bank and the `./bin/ap` and `./bin/bank` tools into the agents' folders, then starts customs, the
-   reader, the red team, the always-on mailroom (watching `runtime/inbox`) and the ledger page. For the real reader model:
+   reader, the red team, the always-on mailroom (watching `runtime/inbox`), the postman and the ledger page.
+   To see the letters to vendors in an inbox, run `scripts/take.sh mailpit` first (a local Mailpit in Docker,
+   http://localhost:8025); otherwise they land in `runtime/outbox/` as `.eml`. For the real reader model:
    `READER=openai AIRLOCK_READER_MODEL=gpt-4o-mini OPENAI_API_KEY=... scripts/take.sh reset`; the default
    replays recorded records and costs nothing.
 7. **Check everything:** `scripts/take.sh doctor`. It asks the live server who is in which room, whether
@@ -176,6 +199,7 @@ set `AIRLOCK_API` or `AIRLOCK_AGENTS_DIR` to override.
    - When the clerk says the batch is ready: `@treasury run batch <batch id>`, then choose **Allow once** on
      each approval card in the thread under your message: one for the routine run, one per large payment.
    - Then `@ap-clerk treasury has paid`, and the clerk reconciles the ledger.
+10. **Check what happened:** `scripts/take.sh verify` (see [What leaves the desk](#what-leaves-the-desk)).
 
 For a second take, use brand-new rooms: `scripts/take.sh fresh` lists the steps, starting with
 `uv run airlock archive-rooms`. A reused room still holds the earlier batch, and the clerk rightly asks whether
@@ -210,8 +234,10 @@ More, with a second person at the desk and the bank-detail change: [docs/DETAILS
   itself and pay without an approval card, and only the model's own judgment stops it. The full run has been
   done live with the clerk on Codex (`gpt-6-luna`) and earlier ones with Claude Code. For real money, run treasury on its own machine (Switch's `machine`
   setting), so its tool isn't reachable from the clerk at all.
-- The ERP and the bank are test doubles behind command-line tools, built to be swapped for real APIs. The
-  Switch setup, the agents, the rooms and the enforcement are real.
+- The ERP and the bank are test doubles behind command-line tools, built to be swapped for real APIs. The bank
+  tool does write the standard ISO 20022 file a bank portal takes, so the hand-off to a real bank is an upload.
+  The letters go to a local mail server, not to real vendors. The Switch setup, the agents, the rooms and the
+  enforcement are real.
 - The routine payment run's card shows the count, total and fingerprint, not each account. The bank pays the run
   only to accounts on its own beneficiary list, at most $10,000 each, to accounts unchanged for 30 days, and only if
   the run matches the card exactly; anything else gets its own card. Set the cap with `AIRLOCK_ROUTINE_CAP_CENTS`.

@@ -124,7 +124,7 @@ billed on the purchase order and raises `already_invoiced`.
 
 ## What has been checked
 
-- `make test`: 311 tests, also run by [CI](https://github.com/Akshats-git/Airlock/actions/workflows/ci.yml) on every push together with the attack corpus and the morning, covering the protocol client, the schema gate, the ERP and bank checks, the agents'
+- `make test`: 330 tests, also run by [CI](https://github.com/Akshats-git/Airlock/actions/workflows/ci.yml) on every push together with the attack corpus and the morning, covering the protocol client, the schema gate, the ERP and bank checks, the ISO 20022 payment files (validated against the published schemas), the postman, `verify`, the agents'
   message handling, the red team, the setup tools and the template. The template tests parse it with Switch's
   own parser and pin the walls: who may instruct treasury, who is in which room, no agent in bypass mode.
 - **A hijacked reader.** Nineteen hostile reader outputs (instructions in every field, `@treasury` mentions,
@@ -177,7 +177,10 @@ src/airlock/customs/         the schema gate (pure code)
 src/airlock/agents/          mailroom, reader, customs, red-team, and the `airlock` command
 src/airlock/protocol/        a small Switch agent-protocol client (resume, pong-first)
 src/airlock/erp/, bank/      the mock ERP (`ap`), the mock bank (`bank`) and its ledger page
+src/airlock/bank/iso20022.py the ISO 20022 pain.001 / pain.002 files each approved command writes
+src/airlock/postman.py       `airlock postman`: letters to vendors, from records, by plain code
 src/airlock/doctor.py        `airlock doctor`: the walls, checked against the live server
+src/airlock/verify.py        `airlock verify`: after a take, the ledger, ERP, files, holds and letters agree
 src/airlock/local.py         finds the server's port and the agents' folders
 src/airlock/gateway.py       `airlock reg-key`: a registration key from your own server
 src/airlock/rooms.py         `airlock archive-rooms`: retire the old rooms before a fresh take
