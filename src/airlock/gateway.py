@@ -111,7 +111,7 @@ def link_specialist(api: str, cookie: str, username: str) -> str:
     found, _ = _req("GET", f"{api}/gateway/collaborations/{bridge}/directory?{q}", cookie=cookie)
     person = next((u for u in (found or {}).get("users", []) if u["username"].lower() == username.lower()), None)
     if person is None:
-        raise GatewayError(f"no Mattermost account named {username!r}; create it first (see the README)")
+        raise GatewayError(f"no Mattermost account named {username!r}; create it first (see docs/DETAILS.md, 'A second person at the desk')")
 
     users, _ = _req("GET", f"{api}/gateway/users", cookie=cookie)
     email = specialist_email(username)

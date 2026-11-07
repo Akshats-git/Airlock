@@ -48,6 +48,6 @@ cat <<'EOT'
 
 Ready. Next:
   scripts/take.sh deliver        drop the four demo emails into the inbox (MAIL=fixtures/morning for 30)
-  then work the desk in Mattermost (README, "Run it", step 9), and finish with scripts/take.sh verify.
-For a second take in new rooms: scripts/take.sh fresh
+  then work the desk in Mattermost (docs/SETUP.md, "Run a morning"), and finish with scripts/take.sh verify.
+For another run in new rooms: scripts/take.sh fresh
 EOT

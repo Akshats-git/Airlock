@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# One command per step of a take.
+# One command per step of a run.
 #   scripts/take.sh reset    stop the listeners, restore ERP and bank, start customs, reader, red-team and the ledger
 #   scripts/take.sh send     post the four fixture emails into quarantine (needs a running reset)
 #   scripts/take.sh deliver  drop mail into runtime/inbox/new; the always-on mailroom posts it (MAIL=fixtures/morning)
 #   scripts/take.sh doctor   check the walls and the setup against the live server
-#   scripts/take.sh verify   after a take: ledger, ERP, payment files, holds and letters agree, and no harm
+#   scripts/take.sh verify   after a run: ledger, ERP, payment files, holds and letters agree, and no harm
 #   scripts/take.sh mailpit  start a local mail server; letters to vendors then show at http://localhost:8025
 #   scripts/take.sh status   what is running, and the bank balance
 #   scripts/take.sh stop     stop everything this script started

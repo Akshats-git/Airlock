@@ -1,4 +1,4 @@
-"""`airlock verify` passes a clean take and catches each way a take could go wrong."""
+"""`airlock verify` passes a clean run and catches each way a run could go wrong."""
 
 import sqlite3
 

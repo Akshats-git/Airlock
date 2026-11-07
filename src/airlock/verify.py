@@ -1,6 +1,6 @@
-"""`airlock verify`: after a live take, check what really happened, from the records themselves.
+"""`airlock verify`: after a live run, check what really happened, from the records themselves.
 
-`doctor` checks the walls before a take; this checks the money after one. It reads the bank (treasury's), the
+`doctor` checks the walls before a run; this checks the money after one. It reads the bank (treasury's), the
 ERP (the clerk's), the payment files, customs' hold log and the postman's outbox, and judges every transfer with
 the same judge as the attack corpus. A pass turns a live run into an assertion, not a recording.
 """
@@ -42,7 +42,7 @@ def checks(bank_path: Path, erp_path: Path, files: Path, holds: Path, outbox: Pa
     out: list[Check] = []
     for p in (bank_path, erp_path):
         if not p.exists():
-            return [Check(FAIL, f"{p} not found", "scripts/take.sh reset, then a take")], {}
+            return [Check(FAIL, f"{p} not found", "scripts/take.sh reset, then a run")], {}
     bank, erp = _ro(bank_path), _ro(erp_path)
     ledger = bank.execute("SELECT * FROM ledger ORDER BY tx_id").fetchall()
     paid = sum(t["amount_cents"] for t in ledger)

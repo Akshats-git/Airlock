@@ -1,4 +1,4 @@
-"""Live ledger page: the video's proof that money moved only after Allow once."""
+"""Live ledger page: shows that money moved only after the controller chose Allow once."""
 
 from __future__ import annotations
 

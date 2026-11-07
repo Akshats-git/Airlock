@@ -4,8 +4,8 @@
     airlock register                      # once; registers the four protocol agents with that key
     airlock specialist sam                # once; gives the second person's chat account its own Switch user
     airlock doctor                        # checks the walls on the live server
-    airlock verify                        # after a take: the ledger, ERP, payment files and letters agree, no harm
-    airlock archive-rooms                 # before a fresh take: archive the old ap-quarantine and ap-desk
+    airlock verify                        # after a run: the ledger, ERP, payment files and letters agree, no harm
+    airlock archive-rooms                 # before a fresh run: archive the old ap-quarantine and ap-desk
     airlock customs                       # leave running
     airlock reader --backend fixture      # leave running; --backend openai for the real model
     airlock redteam                       # leave running; mention it in the desk to fire an attack
@@ -154,7 +154,7 @@ def _controller(names: Names) -> str | None:
 
 @app.command()
 def doctor():
-    """Check against the live server that the walls are where the README says, and that a take can start."""
+    """Check against the live server that the walls are where the README says, and that a run can start."""
     from airlock import doctor as dr
 
     names = Names.from_env()
@@ -191,7 +191,7 @@ def doctor():
 
 @app.command()
 def verify(outbox: Annotated[Path, typer.Option(help="The postman's outbox.")] = Path("runtime/outbox")):
-    """After a live take: check the ledger, the ERP, the payment files, the holds and the letters agree, and that
+    """After a live run: check the ledger, the ERP, the payment files, the holds and the letters agree, and that
     no transfer did harm. Exits 1 on any failure."""
     from airlock import doctor as dr, verify as vf
     from airlock.bank.ops import bank_path, files_dir

@@ -1,4 +1,4 @@
-"""Retire the desk's old rooms before a fresh take.
+"""Retire the desk's old rooms before a fresh run.
 
 Console shows "Delete room" only to a room's owner or an admin, and Switch does not notice a channel archived
 in the chat app. Switch's own `archive_room` operation (reversible, keeps every message) does the job, and
