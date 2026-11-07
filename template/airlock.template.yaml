@@ -59,8 +59,8 @@ resources:
          unchanged, each in single quotes, in card order:
          ./bin/ap match '<JSON of the first REC>' '<JSON of the second REC>' ...
          Post everything it prints as one message, unchanged. Do not chain commands.
-         Then post every line that starts with "HELD", unchanged, as one message. Held records are never
-         entered anywhere.
+         Then post every line that starts with "HELD", unchanged, as one message (ap-policy allows this: a HELD
+         line is only a record id and its reasons). Held records are never entered anywhere.
       2. A line that starts with EXCEPTION needs a person. Right after the last REC result, post one message:
          "Needs the AP specialist:" followed by the EXCEPTION lines, unchanged. Then wait.
       3. When a person answers an exception, run: ./bin/ap resolve <invoice id> short-pay --by <their chat
@@ -189,8 +189,9 @@ resources:
              for 30 days) are approved together as one payment run; its card shows how many, the total and a
              fingerprint, and the bank refuses a run that differs by a single payment. Every other payment
              gets its own card showing its account. One payment per command outside the run.
-          6. Held means held. A record customs holds is not entered, not paid, and not discussed with any
-             agent until a person has looked at the original email in ap-quarantine.
+          6. Held means held. A record customs holds is not entered, not paid, and not acted on by any agent
+             until a person has looked at the original email in ap-quarantine. The clerk does repeat customs'
+             HELD lines (a record id and its reasons, no vendor text) in this room, so people know they exist.
           7. Limit. No single payment may exceed 50,000.00.
     kickoff: |
       @ap-clerk the desk is open. Read the room instructions and ap-policy, then reply with one line: READY.
