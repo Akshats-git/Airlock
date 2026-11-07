@@ -249,6 +249,13 @@ def mailroom_send(directory: Annotated[Path, typer.Option(help="Folder of .eml f
     typer.echo(f"posted run {run}")
 
 
+@mailroom_app.command("watch")
+def mailroom_watch(inbox: Annotated[Path, typer.Option(help="A Maildir-style folder; mail arrives in its new/.")] = Path("runtime/inbox"),
+                   interval: Annotated[float, typer.Option(help="Seconds between looks.")] = 5.0):
+    """Stay on: post whatever arrives in <inbox>/new into quarantine as one run, then file it in cur/."""
+    mailroom_agent.run_watch(inbox, interval)
+
+
 Only = Annotated[list[str] | None, typer.Option(help="Corpus ids or prefixes, e.g. a07 or c01-acme.")]
 Corpus = Annotated[Path, typer.Option(help="Corpus folder (a manifest.json plus one .eml per case).")]
 

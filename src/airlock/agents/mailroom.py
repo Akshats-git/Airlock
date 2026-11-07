@@ -82,3 +82,66 @@ def run_send(directory: Path, only: list[str] | None, delay: float, names: Names
     agent = load_agent(names.mailroom)
     quarantine = resolve_room(agent, names.quarantine)
     return send(agent, quarantine, load_mail(directory, only), names, delay=delay)
+
+
+# -- always on: watch an inbox folder ----------------------------------------------------------------------
+# A Maildir-style folder: a mail fetcher (fetchmail, getmail, a forwarding rule) drops each message in new/;
+# the mailroom posts everything that has arrived as one run, then files it in cur/. Nothing else reads it.
+
+MAX_PER_RUN = 99  # the ENVELOPE header carries the run size in two digits
+
+
+def _mail_id(path: Path, taken: set[str]) -> str:
+    base = re.sub(r"[^a-z0-9-]+", "-", path.stem.lower()).strip("-")[:34] or "mail"
+    base = base if base[0].isalnum() else "m" + base
+    ident, n = base, 1
+    while ident in taken:
+        n += 1
+        ident = f"{base[:34]}-{n}"
+    taken.add(ident)
+    return ident
+
+
+def collect(inbox: Path) -> list[tuple[Path, Mail]]:
+    """What has arrived in inbox/new, oldest first, at most one run's worth."""
+    new = inbox / "new"
+    files = sorted((p for p in new.iterdir() if p.is_file() and not p.name.startswith(".")),
+                   key=lambda p: (p.stat().st_mtime, p.name)) if new.is_dir() else []
+    taken: set[str] = set()
+    return [(p, Mail(_mail_id(p, taken), p.read_text(errors="replace"))) for p in files[:MAX_PER_RUN]]
+
+
+def file_away(inbox: Path, paths: list[Path]) -> None:
+    cur = inbox / "cur"
+    cur.mkdir(parents=True, exist_ok=True)
+    for p in paths:
+        p.rename(cur / p.name)
+
+
+def watch_once(agent: SwitchAgent, quarantine_id: str, inbox: Path, names: Names, *, delay: float = 0.5,
+               sleep=time.sleep) -> str | None:
+    """Post whatever has arrived as one run. Returns the run id, or None when the inbox was empty."""
+    batch = collect(inbox)
+    if not batch:
+        return None
+    run = send(agent, quarantine_id, [m for _, m in batch], names, delay=delay, sleep=sleep)
+    file_away(inbox, [p for p, _ in batch])
+    return run
+
+
+def run_watch(inbox: Path, interval: float, settle: float = 2.0, names: Names | None = None) -> None:
+    import logging
+    log = logging.getLogger("airlock.mailroom")
+    names = names or Names.from_env()
+    agent = load_agent(names.mailroom)
+    quarantine = resolve_room(agent, names.quarantine)
+    for sub in ("new", "cur", "tmp"):
+        (inbox / sub).mkdir(parents=True, exist_ok=True)
+    log.info("mailroom watching %s/new every %ss", inbox, interval)
+    while True:
+        if any((inbox / "new").iterdir()):
+            time.sleep(settle)  # let a burst of deliveries land, so they go as one run
+            run = watch_once(agent, quarantine, inbox, names)
+            if run:
+                log.info("posted run %s", run)
+        time.sleep(interval)

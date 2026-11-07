@@ -34,6 +34,13 @@ def test_api_url_says_what_to_set_when_nothing_is_found(tmp_path):
         local.api_url({}, home=tmp_path, platform="linux")
 
 
+def test_an_explicit_home_ignores_xdg_config_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "elsewhere"))  # GitHub's runners set it
+    assert local.console_dir(tmp_path, "linux") == tmp_path / ".config" / "switchdash"
+    with pytest.raises(local.NotFound):
+        local.api_url({}, home=tmp_path, platform="linux")
+
+
 def test_console_dir_per_platform(tmp_path):
     assert local.console_dir(tmp_path, "darwin") == tmp_path / "Library/Application Support/switchdash"
     assert local.console_dir(tmp_path, "linux").name == "switchdash"

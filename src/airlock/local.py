@@ -18,14 +18,20 @@ class NotFound(RuntimeError):
 
 
 def console_dir(home: Path | None = None, platform: str | None = None) -> Path:
-    """Where Switch Console keeps its settings (Electron's userData folder)."""
+    """Where Switch Console keeps its settings (Electron's userData folder).
+
+    $APPDATA / $XDG_CONFIG_HOME count only for the real home folder, never for an explicit ``home``.
+    """
+    use_env = home is None
     home = home or Path.home()
     platform = platform or sys.platform
     if platform == "darwin":
         return home / "Library" / "Application Support" / "switchdash"
     if platform.startswith("win"):
-        return Path(os.environ.get("APPDATA", home / "AppData" / "Roaming")) / "switchdash"
-    return Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")) / "switchdash"
+        appdata = os.environ.get("APPDATA") if use_env else None
+        return Path(appdata or home / "AppData" / "Roaming") / "switchdash"
+    xdg = os.environ.get("XDG_CONFIG_HOME") if use_env else None
+    return Path(xdg or home / ".config") / "switchdash"
 
 
 def ports_file(home: Path | None = None, platform: str | None = None) -> Path:
