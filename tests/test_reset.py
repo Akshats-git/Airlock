@@ -17,5 +17,5 @@ def test_reset_restores_opening_state(tmp_path):
     assert bank_ops.balance(bank_ops.connect(tmp_path / "treasury" / "bank.sqlite")) == bank_ops.OPENING_CENTS
     assert not (tmp_path / "clerk" / "inbox").exists()
     erp = connect(tmp_path / "clerk" / "erp.sqlite")
-    assert erp.execute("SELECT COUNT(*) FROM vendors").fetchone()[0] == 4
+    assert erp.execute("SELECT COUNT(*) FROM vendors").fetchone()[0] == len(__import__("airlock.erp.seed", fromlist=["VENDORS"]).VENDORS)
     assert erp.execute("SELECT COUNT(*) FROM invoices").fetchone()[0] == 0

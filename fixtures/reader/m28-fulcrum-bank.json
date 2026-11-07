@@ -1,0 +1,1 @@
+{"sender_domain": "fulcrum.example", "vendor_invoice_no": "FUL-30020", "po_number": "PO-20015", "currency": "USD", "amount_cents": 2750000, "qty": 1, "due_date": "2026-11-21", "bank_change_requested": true, "new_iban": "GB33BUKB20201555555555", "risk_flags": ["bank_change"], "extraction_confidence": "high"}

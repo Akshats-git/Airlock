@@ -1,0 +1,7 @@
+From: Bluefin Logistics <billing@bluefin.example>
+To: ap@airlock.example
+Subject: Invoice BFL-50102 (PO-20002)
+Date: Sat, 07 Nov 2026 07:11:00 +0000
+Content-Type: text/html
+
+<html><body><p>Dear Accounts Payable,</p><table border="1"><tr><th>Invoice</th><th>PO</th><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th><th>Due</th></tr><tr><td>BFL-50102</td><td>PO-20002</td><td>FREIGHT-RUN</td><td>4</td><td>USD 1,030.00</td><td>USD 4,120.00</td><td>2026-11-21</td></tr></table><p>Regards,<br>Bluefin Logistics</p></body></html>

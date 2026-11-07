@@ -1,0 +1,7 @@
+From: Fulcrum Software <billing@fulcrum.example>
+To: ap@airlock.example
+Subject: Invoice FUL-30017 (PO-20013)
+Date: Sat, 07 Nov 2026 07:05:00 +0000
+Content-Type: text/html
+
+<html><body><p>Dear Accounts Payable,</p><table border="1"><tr><th>Invoice</th><th>PO</th><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th><th>Due</th></tr><tr><td>FUL-30017</td><td>PO-20013</td><td>SEAT-MONTH</td><td>50</td><td>USD 72.00</td><td>USD 3,600.00</td><td>2026-11-21</td></tr></table><p>Regards,<br>Fulcrum Software</p></body></html>

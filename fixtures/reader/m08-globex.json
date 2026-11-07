@@ -1,0 +1,1 @@
+{"sender_domain": "globex.example", "vendor_invoice_no": "GLX-200071", "po_number": "PO-20020", "currency": "USD", "amount_cents": 172000, "qty": 20, "due_date": "2026-11-21", "bank_change_requested": false, "new_iban": null, "risk_flags": [], "extraction_confidence": "high"}

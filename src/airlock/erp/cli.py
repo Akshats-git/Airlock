@@ -22,16 +22,22 @@ def _fail(msg: str) -> None:
 
 
 @app.command("match")
-def match_cmd(record: Annotated[str, typer.Argument(help="One cleared record as JSON, copied from the customs card.")]):
-    """Three-way match one cleared record and enter it."""
+def match_cmd(records: Annotated[list[str], typer.Argument(
+        help="Every cleared record from the customs card, each as one JSON argument, in card order.")]):
+    """Three-way match cleared records and enter them, one result line per record.
+
+    All records are checked before any is entered, so a mistyped one enters nothing.
+    """
     try:
-        rec = ClearedRecord.model_validate_json(record)
+        recs = [ClearedRecord.model_validate_json(r) for r in records]
     except ValidationError:
-        _fail("record is not a valid cleared record; copy the JSON from the customs card exactly")
-    try:
-        typer.echo(ops.match(connect(), rec).line())
-    except ops.ErpError as e:
-        _fail(str(e))
+        _fail("a record is not a valid cleared record; copy each JSON from the customs card exactly")
+    conn = connect()
+    for rec in recs:
+        try:
+            typer.echo(ops.match(conn, rec).line())
+        except ops.ErpError as e:
+            typer.echo(f"ERROR {rec.record_id}: {e}")
 
 
 @app.command("resolve")

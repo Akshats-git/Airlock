@@ -114,3 +114,15 @@ def test_a_short_paid_po_is_used_up(erp):
     again = ops.match(erp, cleared(record_id="Q-20261107-002", vendor_id="V-NORTHW", vendor_invoice_no="NW-4411",
                                    po_number="PO-10003", amount_cents=550000, qty=100))
     assert again.reasons == ["already_invoiced"]
+
+
+def test_one_ap_match_command_enters_a_whole_card(erp):
+    r = CliRunner().invoke(app, ["match", ACME.to_line(), GLOBEX.to_line(), NORTHW.to_line(), ACME.to_line()])
+    assert r.exit_code == 0
+    assert [ln.split()[0] for ln in r.output.strip().splitlines()] == ["MATCHED", "MATCHED", "EXCEPTION", "DUPLICATE"]
+
+
+def test_a_mistyped_record_enters_nothing(erp):
+    r = CliRunner().invoke(app, ["match", ACME.to_line(), '{"record_id": "nope"}'])
+    assert r.exit_code == 1 and r.output.startswith("ERROR a record is not a valid cleared record")
+    assert erp.execute("SELECT COUNT(*) FROM invoices").fetchone()[0] == 0

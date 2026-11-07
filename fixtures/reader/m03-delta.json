@@ -1,0 +1,1 @@
+{"sender_domain": "deltafm.example", "vendor_invoice_no": "DFM-880101", "po_number": "PO-20007", "currency": "USD", "amount_cents": 640000, "qty": 1, "due_date": "2026-11-21", "bank_change_requested": false, "new_iban": null, "risk_flags": [], "extraction_confidence": "high"}

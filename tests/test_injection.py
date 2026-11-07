@@ -21,7 +21,7 @@ RUN = "090314"
 
 LINE = re.compile(
     r"^(?:@ap-clerk )?CUSTOMS CARD 2026-11-07 run=\d{6} cleared=\d+ held=\d+$"
-    r"|^Run `\./bin/ap match '<json>'` once per REC line and post each result line unchanged\.$"
+    r"|^Run `\./bin/ap match '<json>' '<json>' \.\.\.` once, with every REC line's JSON in order, and post each result line unchanged\.$"
     r"|^REC \{\"record_id\":\"Q-20261107-\d{3}\",\"vendor_id\":\"V-[A-Z]+\",\"vendor_invoice_no\":\"[A-Z0-9-]+\","
     r"\"po_number\":\"PO-\d{5}\",\"currency\":\"(?:USD|EUR|GBP)\",\"amount_cents\":\d+,\"qty\":\d+,"
     r"\"due_date\":\"\d{4}-\d{2}-\d{2}\"\}$"

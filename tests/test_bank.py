@@ -4,6 +4,7 @@ import pytest
 from typer.testing import CliRunner
 
 from airlock.bank import ops
+from airlock.erp.seed import VENDORS
 from airlock.bank.cli import app
 from airlock.erp import ops as erp_ops
 from tests.conftest import ACME, GLOBEX, NORTHW
@@ -87,7 +88,7 @@ def test_a_vendor_missing_from_the_beneficiary_list_is_never_paid(desk):
 
 def test_beneficiary_list_starts_with_the_onboarded_vendors(desk):
     rows = ops.connect().execute("SELECT vendor_id, iban, verified_by FROM beneficiaries ORDER BY vendor_id").fetchall()
-    assert ("V-ACME", ACME_IBAN, "vendor onboarding call") in [tuple(r) for r in rows] and len(rows) == 4
+    assert ("V-ACME", ACME_IBAN, "vendor onboarding call") in [tuple(r) for r in rows] and len(rows) == len(VENDORS)
 
 
 def test_per_payment_cap(desk, monkeypatch):

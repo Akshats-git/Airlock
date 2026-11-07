@@ -71,7 +71,7 @@ EOF
 
 case "${1:-}" in
   reset)  stop; locate; uv run airlock bootstrap >/dev/null; echo "ERP and bank restored in $AIRLOCK_AGENTS_DIR"; up ;;
-  send)   uv run airlock mailroom send ;;
+  send)   uv run airlock mailroom send --directory "${MAIL:-fixtures/emails}" ;;
   doctor) uv run airlock doctor ;;
   status) locate
           for f in "$PIDS"/*.pid; do [ -e "$f" ] && { n=$(basename "$f" .pid); kill -0 "$(cat "$f")" 2>/dev/null && echo "$n: running" || echo "$n: dead"; }; done

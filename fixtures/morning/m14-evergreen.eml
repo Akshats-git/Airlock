@@ -1,0 +1,7 @@
+From: Evergreen Catering <billing@evergreen.example>
+To: ap@airlock.example
+Subject: Invoice EVG-4411 (PO-20011)
+Date: Sat, 07 Nov 2026 07:14:00 +0000
+Content-Type: text/html
+
+<html><body><p>Dear Accounts Payable,</p><table border="1"><tr><th>Invoice</th><th>PO</th><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th><th>Due</th></tr><tr><td>EVG-4411</td><td>PO-20011</td><td>LUNCH</td><td>45</td><td>USD 24.50</td><td>USD 1,102.50</td><td>2026-11-21</td></tr></table><p>Regards,<br>Evergreen Catering</p></body></html>

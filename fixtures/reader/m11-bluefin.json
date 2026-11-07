@@ -1,0 +1,1 @@
+{"sender_domain": "bluefin.example", "vendor_invoice_no": "BFL-50102", "po_number": "PO-20002", "currency": "USD", "amount_cents": 412000, "qty": 4, "due_date": "2026-11-21", "bank_change_requested": false, "new_iban": null, "risk_flags": [], "extraction_confidence": "high"}

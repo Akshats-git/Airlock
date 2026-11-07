@@ -1,0 +1,7 @@
+From: Cobalt Office Supply <billing@cobalt.example>
+To: ap@airlock.example
+Subject: Invoice COB-7731 (PO-20004)
+Date: Sat, 07 Nov 2026 07:02:00 +0000
+Content-Type: text/html
+
+<html><body><p>Dear Accounts Payable,</p><table border="1"><tr><th>Invoice</th><th>PO</th><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th><th>Due</th></tr><tr><td>COB-7731</td><td>PO-20004</td><td>PAPER-A4</td><td>40</td><td>USD 15.31</td><td>USD 612.40</td><td>2026-11-21</td></tr></table><p>Regards,<br>Cobalt Office Supply</p></body></html>

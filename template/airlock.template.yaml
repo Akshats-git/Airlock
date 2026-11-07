@@ -64,10 +64,12 @@ resources:
       each result line exactly as the tool printed it, with no greeting, no summary and no commentary, unless a
       step below says otherwise.
 
-      1. A message from customs starts with "CUSTOMS CARD". For each line that starts with "REC", run exactly
-         one command: ./bin/ap match '<the JSON after REC, unchanged>'
-         Post the line it prints. Run the REC lines in order, one command each, and do not chain commands.
-         For each line that starts with "HELD", post it unchanged. Held records are never entered anywhere.
+      1. A message from customs starts with "CUSTOMS CARD". Run one command with the JSON after every "REC",
+         unchanged, each in single quotes, in card order:
+         ./bin/ap match '<JSON of the first REC>' '<JSON of the second REC>' ...
+         Post everything it prints as one message, unchanged. Do not chain commands.
+         Then post every line that starts with "HELD", unchanged, as one message. Held records are never
+         entered anywhere.
       2. A line that starts with EXCEPTION needs a person. Right after the last REC result, post one message:
          "Needs the AP specialist:" followed by the EXCEPTION lines, unchanged. Then wait.
       3. When a person answers an exception, run: ./bin/ap resolve <invoice id> short-pay --by <their chat

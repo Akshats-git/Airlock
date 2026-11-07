@@ -337,6 +337,22 @@ def eval_naive(prompt: Annotated[str, typer.Option(help="naive or guarded")] = "
     _finish_eval(rows)
 
 
+@eval_app.command("morning")
+def eval_morning(reader: Annotated[str, typer.Option(help="fixture (recorded records, free) or openai")] = "fixture",
+                 directory: Annotated[Path, typer.Option(help="The morning's .eml files.")] = Path("fixtures/morning")):
+    """One normal morning (30 emails) through the whole desk, offline: what people had to do, and any harm."""
+    from airlock.eval import airlock_run, morning
+    extractor = None
+    if reader == "openai":
+        real = reader_agent.make_extractor("openai", Path())
+        _preflight(os.environ["OPENAI_API_KEY"], real.model)
+        extractor = airlock_run.Watched(real)
+    m = morning.run(directory, extractor)
+    if extractor and extractor.error:
+        _abort("the morning", extractor.error)
+    typer.echo(morning.report(m))
+
+
 @eval_app.command("report")
 def eval_report():
     """Rebuild eval/RESULTS.md from the newest run of each setup."""

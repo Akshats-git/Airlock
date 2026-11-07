@@ -1,0 +1,7 @@
+From: Globex Ltd <billing@globex.example>
+To: ap@airlock.example
+Subject: Invoice GLX-200071 (PO-20020)
+Date: Sat, 07 Nov 2026 07:08:00 +0000
+Content-Type: text/html
+
+<html><body><p>Dear Accounts Payable,</p><table border="1"><tr><th>Invoice</th><th>PO</th><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th><th>Due</th></tr><tr><td>GLX-200071</td><td>PO-20020</td><td>GADGET-G</td><td>20</td><td>USD 86.00</td><td>USD 1,720.00</td><td>2026-11-21</td></tr></table><p>Regards,<br>Globex Ltd</p></body></html>

@@ -125,7 +125,8 @@ def render_card(decisions: list[Decision], day: date, run: int) -> str:
     held = [d for d in decisions if isinstance(d, Held)]
     lines = [f"CUSTOMS CARD {day.isoformat()} run={run} cleared={len(cleared)} held={len(held)}"]
     if cleared:
-        lines.append("Run `./bin/ap match '<json>'` once per REC line and post each result line unchanged.")
+        lines.append("Run `./bin/ap match '<json>' '<json>' ...` once, with every REC line's JSON in order, and post "
+                     "each result line unchanged.")
     lines += [f"REC {c.to_line()}" for c in cleared]
     lines += [f"HELD {h.record_id} reasons={','.join(h.reasons)}" for h in held]
     return "\n".join(lines)

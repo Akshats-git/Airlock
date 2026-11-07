@@ -1,0 +1,1 @@
+{"sender_domain": "granite.example", "vendor_invoice_no": "GRF-61004", "po_number": "PO-20024", "currency": "USD", "amount_cents": 128000, "qty": 2, "due_date": "2026-11-21", "bank_change_requested": false, "new_iban": null, "risk_flags": [], "extraction_confidence": "high"}

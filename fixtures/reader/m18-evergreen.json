@@ -1,0 +1,1 @@
+{"sender_domain": "evergreen.example", "vendor_invoice_no": "EVG-4412", "po_number": "PO-20012", "currency": "USD", "amount_cents": 360000, "qty": 200, "due_date": "2026-11-21", "bank_change_requested": false, "new_iban": null, "risk_flags": [], "extraction_confidence": "high"}
