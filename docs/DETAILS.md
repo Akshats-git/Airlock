@@ -1,7 +1,18 @@
 # Airlock in detail
 
-The [README](../README.md) is the short version. This page holds the rest: the second person and the bank-detail
-change, the attack corpus, everything that has been checked and how, troubleshooting, and the layout of the repo.
+The [README](../README.md) is the short version and [SETUP.md](SETUP.md) covers running the live desk. This page
+holds the rest.
+
+- [A second person at the desk](#a-second-person-at-the-desk)
+- [What happens, and why](#what-happens-and-why)
+- [One morning, measured](#one-morning-measured)
+- [What leaves the desk](#what-leaves-the-desk)
+- [The attack corpus](#the-attack-corpus)
+- [What has been checked](#what-has-been-checked)
+- [Screenshots](#screenshots)
+- [Limits in full](#limits-in-full)
+- [Other chat apps](#other-chat-apps)
+- [Layout](#layout)
 
 ## A second person at the desk
 
@@ -69,6 +80,41 @@ folder, not the clerk's: the clerk owns the ERP, so the account in the ERP is on
 tool refuses a payee, account or amount that differs, and treasury's command names the account, so the
 controller sees exactly where each payment is going on the approval card.
 
+## One morning, measured
+
+30 vendor emails, measured live on Switch 0.31.0 on 7 November with the clerk on Codex.
+
+| | |
+|---|---|
+| Inbox to a payment batch ready for approval | **2 minutes** (12:23:01 to 12:25:01) |
+| Frauds held before any agent with tools saw them | **3 of 3**: a bank change from a real vendor's domain, a lookalike domain, hidden instructions to the AI |
+| Invoices matched to purchase order and goods receipt | **27 in one clerk command**: 24 matched, 2 exceptions, 1 duplicate caught |
+| Decisions the AP specialist made | **2** (a short delivery and a price dispute, both short-paid) |
+| Approvals the controller gave for 26 payments | **4**: one card for the 23 routine payments, one each for the three over $10,000 |
+| Paid, to verified accounts only, then reconciled | **26 payments, $131,799.90** |
+
+The same morning runs offline, free, in CI: `uv run airlock eval morning`.
+
+For scale, though not a like-for-like comparison: Ardent Partners' *Accounts Payable Metrics That Matter 2025*,
+as reported by [WEX](https://www.wexinc.com/resources/blog/what-does-it-cost-to-process-an-invoice-ap-benchmarks-every-finance-team-should-know/),
+puts the average cost of processing one invoice at $9.40 and the average time at 9.2 days. That time runs through
+approval and payment, while Airlock's two minutes end at a batch awaiting the controller. What the numbers do show
+is who spent the time: 6 human actions for 27 invoices.
+
+## What leaves the desk
+
+- **The bank file.** Each approved command makes treasury's bank tool write an ISO 20022 credit-transfer file
+  (`pain.001.001.09`, the format bank portals accept for bulk payments) and the bank's status report
+  (`pain.002.001.10`). The tests validate both against the published ISO schemas. The values come from the bank's
+  own ledger after its checks pass, never from the batch document.
+- **The letters vendors get.** A remittance advice for every payment, a credit-note request for every short
+  payment, and bank-detail notices ("we received a request to change your bank details and changed nothing").
+  No agent writes them. The postman, plain code outside every room, builds each letter from fixed wording and the
+  records, and sends it to the address on the bank's beneficiary list, which no email can change.
+- **Proof after the fact.** `scripts/take.sh verify` checks a live run from the records: the ledger and balance
+  agree, every transfer is a reconciled ERP payment, the attack corpus's judge finds no harm, no held record
+  reached the ERP, every transfer is in exactly one payment file, and every letter went out.
+
 ## The attack corpus
 
 [eval/corpus/](../eval/corpus/) holds 28 attack emails and 7 clean invoices. The attacks: a polite bank change from
@@ -133,7 +179,7 @@ billed on the purchase order and raises `already_invoiced`.
 
 ## What has been checked
 
-- `make test`: 350 tests, also run by [CI](https://github.com/Akshats-git/Airlock/actions/workflows/ci.yml) on every push together with the attack corpus and the morning, covering the protocol client, the schema gate, the ERP and bank checks, the ISO 20022 payment files (validated against the published schemas), the postman, `verify`, the agents'
+- `make test`: 352 tests, also run by [CI](https://github.com/Akshats-git/Airlock/actions/workflows/ci.yml) on every push together with the attack corpus and the morning, covering the protocol client, the schema gate, the ERP and bank checks, the ISO 20022 payment files (validated against the published schemas), the postman, `verify`, the agents'
   message handling, the red team, the setup tools and the template. The template tests parse it with Switch's
   own parser and pin the walls: who may instruct treasury, who is in which room, no agent in bypass mode.
 - **A hijacked reader.** Nineteen hostile reader outputs (instructions in every field, `@treasury` mentions,
@@ -161,22 +207,71 @@ billed on the purchase order and raises `already_invoiced`.
   fixtures: three cleared, Initech held. The attack corpus below has since been run through the real reader
   twice.
 
+## Screenshots
+
+From the live run of 7 November, as the AP specialist sees `ap-desk`.
+
+<details><summary>Customs' card: 27 cleared, 3 held, values only</summary>
+
+![Customs' card](img/01-customs-card.png)
+</details>
+
+<details><summary>The clerk's one command, the holds, and the specialist's decisions</summary>
+
+![The clerk's one command](img/02-clerk-one-command.png)
+</details>
+
+<details><summary>Treasury's approval cards: one for 23 routine payments, one each for the large ones</summary>
+
+![Approval cards](img/03-approval-cards.png)
+</details>
+
+<details><summary>Switch refuses the AP specialist and the red team</summary>
+
+![Switch refuses the AP specialist](img/04-specialist-refused.png)
+![Switch refuses the red team](img/05-red-team-refused.png)
+</details>
+
+<details><summary>A callback to the wrong number, and a forged one, go nowhere</summary>
+
+![Bank-change guard](img/06-bank-change-guard.png)
+</details>
+
+<details><summary>The treasury ledger after the morning</summary>
+
+![Treasury ledger](img/07-ledger.png)
+</details>
+
+## Limits in full
+
+- **The clerk and treasury share a machine and an OS user, so the wall between them is Codex's sandbox.** The
+  template runs the clerk only on Codex (Claude Code has no sandbox and could run the bank tool without a card),
+  and `doctor` fails if it isn't. In the `workspace-write` sandbox the clerk can neither run a payment nor change
+  the bank's beneficiary list; the isolation test and red-team attack 7 check this. It can still rewrite the ERP it
+  owns and take instructions from anyone at the desk, so a talked-round clerk could at worst ask for a real vendor
+  to be paid the wrong amount, to that vendor's verified account, on a card the controller reads first. For real
+  money, put treasury on its own machine (Switch's `machine` setting).
+- **The ERP and the bank are test doubles** behind command-line tools, built to be swapped for real APIs. The bank
+  tool does write the standard ISO 20022 file a bank portal takes, so the hand-off to a real bank is an upload. The
+  letters go to a local mail server, not to real vendors. The Switch setup, the agents, the rooms and the
+  enforcement are real.
+- **The routine run's card** shows the count, total and fingerprint, not each account. The bank pays the run only
+  to accounts on its own beneficiary list, at most $10,000 each, unchanged for 30 days, and only if the run matches
+  the card exactly; anything else gets its own card. Set the cap with `AIRLOCK_ROUTINE_CAP_CENTS`.
+- **`approved_by` on a receipt** is the controller's name. That is sound because treasury is owner-only and Switch
+  lets only someone who may address an agent answer its cards, so the one person who can allow a payment is
+  treasury's owner. `bootstrap` takes the name from Switch, and `doctor` and `verify` fail if it stops matching or
+  treasury stops being owner-only.
+- **Agents inherit their owner's Switch permissions.** Airlock gives the reader no tools, and customs and the
+  mailroom are plain code, but it is a property of Switch to be aware of.
+- **Platforms.** The live desk has run only on Ubuntu 24.04. The offline path runs on Linux and macOS in CI.
+
 ## Other chat apps
 
 Tested on the bundled Mattermost only. The template's `bridge` setting picks the messaging app, and every wall
 here lives in Switch (rooms, addressing, document authorship, approval cards), not in the chat app, so the design
 doesn't change on Slack, Discord, Teams or Telegram. Where an approval button can't be shown, typing the card's
 answer (for example `A3 1`) works the same way.
-
-## Troubleshooting
-
-| You see | Do this |
-|---|---|
-| An agent stays silent | `scripts/take.sh doctor`; `!agents-status` in the room; open the thread under your message |
-| The clerk asks "Is this a re-run?" | The room still holds an earlier batch: `scripts/take.sh fresh` |
-| Treasury says there is no batch document | The clerk hasn't proposed one yet, or the batch id is mistyped |
-| No approval card | Open the thread under `@treasury run batch`; check treasury's Auto mode is off |
-| `airlock` can't find the server | Start the local server in Console, or set `AIRLOCK_API` |
 
 ## Layout
 
@@ -189,13 +284,14 @@ src/airlock/erp/, bank/      the mock ERP (`ap`), the mock bank (`bank`) and its
 src/airlock/bank/iso20022.py the ISO 20022 pain.001 / pain.002 files each approved command writes
 src/airlock/postman.py       `airlock postman`: letters to vendors, from records, by plain code
 src/airlock/doctor.py        `airlock doctor`: the walls, checked against the live server
-src/airlock/verify.py        `airlock verify`: after a take, the ledger, ERP, files, holds and letters agree
+src/airlock/verify.py        `airlock verify`: after a run, the ledger, ERP, files, holds and letters agree
 src/airlock/local.py         finds the server's port and the agents' folders
 src/airlock/gateway.py       `airlock reg-key`: a registration key from your own server
-src/airlock/rooms.py         `airlock archive-rooms`: retire the old rooms before a fresh take
+src/airlock/rooms.py         `airlock archive-rooms`: retire the old rooms before a fresh run
 template/                    the Switch template
-fixtures/                    four emails and the records the reader should produce
+fixtures/                    demo emails, the 30-email morning, and recorded reader output
 eval/                        the attack corpus, raw results and RESULTS.md; harness in src/airlock/eval/
-scripts/take.sh              reset, send, doctor, status, stop, fresh
+scripts/setup.sh             first-time setup
+scripts/take.sh              reset, deliver, doctor, verify, status, stop, fresh, mailpit
 ```
 
